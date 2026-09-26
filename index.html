@@ -39,9 +39,9 @@
     var small = window.matchMedia && matchMedia('(max-width: 900px)').matches;
     var lite = document.documentElement.classList.contains('lite');
     var need = window.innerWidth * Math.min(window.devicePixelRatio || 1, 1.5);
-    var dir = 'assets/walk/v2/' + (small ? 'sm' : (need > 1700 && !lite ? 'hd' : 'md')) + '/';
+    var dir = 'assets/walk/v3/' + (small ? 'sm' : (need > 1700 && !lite ? 'hd' : 'md')) + '/';
     window.DP_WALK = dir;
-    var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = dir + 'f000.webp'; l.setAttribute('fetchpriority', 'high');
+    var l = document.createElement('link'); l.rel = 'preload'; l.as = 'fetch'; l.crossOrigin = 'anonymous'; l.href = dir + 'f000.webp'; l.setAttribute('fetchpriority', 'high');
     document.head.appendChild(l);
   })();
 </script>
@@ -895,35 +895,39 @@ img { height: auto; }
 
   /* ---------------- Walk-in frames ----------------
      Frame size is chosen in <head> (DP_WALK): 1920px for large or sharp screens, 1280px for laptops, 720px for phones.
-     Memory stays small: images are kept encoded, and only the frames right around the current position
-     are decoded, as bitmaps cropped to the screen shape (about 9 at a time on computers).
+     Frames are downloaded as compressed files and decoded off the main thread (createImageBitmap on the file),
+     only for the few frames around the current position, cropped to the screen shape. Scrolling never waits
+     on a decode: if a frame isn't ready yet, the last ready one stays on screen.
      Scroll sets a target, the shown position eases toward it, and neighbouring frames cross-fade. */
-  var COUNT = 150, ONLY_EVEN = SMALL || LITE, DIR = window.DP_WALK || 'assets/walk/v2/md/';
-  var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false }), imgs = [], loaded = [];
+  var COUNT = 150, ONLY_EVEN = SMALL || LITE, DIR = window.DP_WALK || 'assets/walk/v3/md/';
+  var FW = /\/hd\/$/.test(DIR) ? 1920 : /\/sm\/$/.test(DIR) ? 720 : 1280, FH = Math.round(FW * 9 / 16);
+  var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false });
+  var files = [], loaded = [], bmps = {}, pending = {}, inFlight = 0, cropKey = '';
   var target = 0, shown = 0, lastKey = '';
-  var HAS_BMP = !!window.createImageBitmap, bmps = {}, pending = {}, inFlight = 0, cropKey = '';
-  var WIN_BACK = 1, WIN_AHEAD = SMALL ? 10 : 4;
-  function cropFor(im) {
-    var c = canvas.width / canvas.height, iw = im.naturalWidth, ih = im.naturalHeight;
-    if (iw / ih > c) { var sw = ih * c; return [(iw - sw) / 2, 0, sw, ih]; }
-    var sh = iw / c; return [0, (ih - sh) / 2, iw, sh];
+  var WIN_BACK = 1, WIN_AHEAD = SMALL ? 10 : 5;
+  var BG = !!window.createImageBitmap;
+  function crop() {
+    var c = canvas.width / canvas.height;
+    if (FW / FH > c) { var sw = FH * c; return [(FW - sw) / 2, 0, sw, FH]; }
+    var sh = FW / c; return [0, (FH - sh) / 2, FW, sh];
   }
   function dropBitmap(k) { if (bmps[k]) { if (bmps[k].close) bmps[k].close(); delete bmps[k]; } }
   function inWindow(k) { var a = Math.floor(shown); return k >= a - WIN_BACK && k <= a + WIN_AHEAD + 1; }
   function makeBitmap(k) {
-    if (!HAS_BMP || !loaded[k] || bmps[k] || pending[k] || inFlight >= 2) return;
-    var im = imgs[k], cr = cropFor(im), key = cropKey;
-    var rw = Math.min(Math.round(cr[2]), canvas.width), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
+    if (!loaded[k] || bmps[k] || pending[k] || inFlight >= 3 || k < 0 || k >= COUNT) return;
+    var cr = crop(), key = cropKey, rw = Math.min(Math.round(cr[2]), canvas.width), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
     pending[k] = true; inFlight++;
-    createImageBitmap(im, Math.round(cr[0]), Math.round(cr[1]), Math.round(cr[2]), Math.round(cr[3]), { resizeWidth: rw, resizeHeight: rh, resizeQuality: 'high' })
-      .then(function (bm) {
+    var job = BG
+      ? createImageBitmap(files[k], Math.round(cr[0]), Math.round(cr[1]), Math.round(cr[2]), Math.round(cr[3]), { resizeWidth: rw, resizeHeight: rh, resizeQuality: 'high' })
+      : new Promise(function (res, rej) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = rej; im.src = URL.createObjectURL(files[k]); });
+    job.then(function (bm) {
         if (key !== cropKey || !inWindow(k)) { if (bm.close) bm.close(); return; }
         bmps[k] = bm;
-        if (Math.abs(k - shown) < 2) repaint();
+        if (Math.abs(k - shown) < 2 || lastKey === '') repaint();
       }, function () {})
       .then(function () { pending[k] = false; inFlight--; warm(); });
   }
-  // keep bitmaps only for the frames around the current position
+  // keep decoded frames only around the current position; nearest first
   function warm() {
     var a = Math.floor(shown);
     Object.keys(bmps).forEach(function (k) { if (!inWindow(+k)) dropBitmap(+k); });
@@ -941,49 +945,39 @@ img { height: auto; }
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     cropKey = canvas.width + 'x' + canvas.height;
     Object.keys(bmps).forEach(function (k) { dropBitmap(+k); });
-    repaint(); warm();
+    lastKey = ''; warm();
   }
-  function nearest(k) {
-    if (loaded[k]) return k;
-    for (var d = 1; d < COUNT; d++) { if (k - d >= 0 && loaded[k - d]) return k - d; if (k + d < COUNT && loaded[k + d]) return k + d; }
+  // nearest frame that is decoded and ready to draw
+  function nearestReady(k) {
+    if (bmps[k]) return k;
+    for (var d = 1; d < 12; d++) { if (bmps[k - d]) return k - d; if (bmps[k + d]) return k + d; }
     return -1;
   }
-  // next loaded frame after k (bridges gaps while frames are still arriving)
-  function nextLoaded(k) { for (var j = k + 1; j < Math.min(COUNT, k + 9); j++) if (loaded[j]) return j; return -1; }
+  function nextReady(k) { for (var j = k + 1; j < Math.min(COUNT, k + 9); j++) if (bmps[j]) return j; return -1; }
   function drawFrame(k, alpha) {
     ctx.globalAlpha = alpha;
-    if (bmps[k]) ctx.drawImage(bmps[k], 0, 0, canvas.width, canvas.height);
-    else {
-      var im = imgs[k], cr = cropFor(im);
-      ctx.drawImage(im, cr[0], cr[1], cr[2], cr[3], 0, 0, canvas.width, canvas.height);
-    }
+    var bm = bmps[k];
+    if (bm.width === canvas.width || !bm.naturalWidth) ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
+    else { var cr = crop(); ctx.drawImage(bm, cr[0], cr[1], cr[2], cr[3], 0, 0, canvas.width, canvas.height); }
     ctx.globalAlpha = 1;
   }
   function repaint() { lastKey = ''; paint(shown); }
   function paint(pos) {
-    var a = Math.floor(pos), base = nearest(a);
-    if (base < 0) return;
-    var b = base <= pos ? nextLoaded(base) : -1, t = 0;
+    var a = Math.floor(pos), base = nearestReady(a);
+    if (base < 0) return;                      // nothing decoded yet: keep what is on screen
+    var b = base <= pos ? nextReady(base) : -1, t = 0;
     if (b > 0) t = clamp((pos - base) / (b - base), 0, 1);
-    t = Math.round(t * 20) / 20;           // 20 blend steps between frames are plenty
-    var key = base + ':' + (t > 0 ? b + ':' + t : '') + ':' + (bmps[base] ? 1 : 0);
+    t = Math.round(t * 20) / 20;
+    var key = base + ':' + (t > 0 ? b + ':' + t : '');
     if (key === lastKey) return;
     lastKey = key;
     drawFrame(base, 1);
     if (t > 0) drawFrame(b, t);
   }
   function load(k) {
-    return new Promise(function (res) {
-      var im = new Image();
-      im.onload = function () {
-        imgs[k] = im; loaded[k] = true;
-        if (Math.abs(k - shown) < 3 || lastKey === '') repaint();
-        if (inWindow(k)) makeBitmap(k);
-        res();
-      };
-      im.onerror = function () { res(); };
-      im.src = DIR + 'f' + String(k).padStart(3, '0') + '.webp';
-    });
+    return fetch(DIR + 'f' + String(k).padStart(3, '0') + '.webp')
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (blob) { files[k] = blob; loaded[k] = true; if (inWindow(k)) makeBitmap(k); }, function () {});
   }
   // ease the shown position toward the scroll position (only while the walk-in is on screen)
   var walkEl = $('walk'), walkOn = true, lastWarm = -1;
@@ -1019,13 +1013,24 @@ img { height: auto; }
       $('pct-num').textContent = Math.round(p); $('pct-bar').style.transform = 'scaleX(' + p / 100 + ')'; $('pct-msg').textContent = MSGS[Math.min(3, Math.floor(p / 25))];
     }, 50);
   }
+  // wait until the first frame is actually on screen before lifting the loader
+  var firstShown = new Promise(function (res) { (function chk() { if (lastKey !== '') res(); else setTimeout(chk, 50); })(); });
   var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
-  Promise.race([Promise.all(order.map(function (f) { return load(f).then(function () { loadedCount++; }); }).concat([fonts])), new Promise(function (r) { setTimeout(r, 9000); })])
+  // download a few at a time so the network isn't flooded
+  function loadList(list, n) {
+    return new Promise(function (res) {
+      var q = list.slice(), active = 0;
+      (function pump() {
+        if (!q.length && !active) return res();
+        while (active < n && q.length) { active++; load(q.shift()).then(function () { active--; loadedCount++; pump(); }); }
+      })();
+    });
+  }
+  Promise.race([Promise.all([loadList(order, 6), fonts, firstShown]), new Promise(function (r) { setTimeout(r, 10000); })])
     .then(function () {
       if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
-      // fetch the rest a few at a time so the network stays free for the photos
       var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) if (!loaded[j]) rest.push(j);
-      (function next() { var batch = rest.splice(0, 4); if (!batch.length) return; Promise.all(batch.map(load)).then(next); })();
+      loadList(rest, 3);
       start();
     });
 

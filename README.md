@@ -6,7 +6,7 @@ Everything else is media, fonts and the animation libraries, all served from thi
 ```
 index.html
 assets/img/     photos as WebP, each with a -sm phone size (storefront.jpg is the link preview)
-assets/walk/v2/  the 150 walk-in frames: hd/ 1920px, md/ 1280px, sm/ 720px (phones load every second one).
+assets/walk/v3/  the 150 walk-in frames: hd/ 1920px, md/ 1280px, sm/ 720px, near-original quality (phones load every second one).
                  Change the folder name (v3, ...) whenever the frames change, because assets are cached for a year.
 assets/vendor/  GSAP 3.12.5, ScrollTrigger, Lenis 1.1.13 (self-hosted, no CDN)
 assets/fonts/   Playfair Display and Manrope (self-hosted)
