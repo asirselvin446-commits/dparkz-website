@@ -898,7 +898,8 @@ img { height: auto; }
      Frames are downloaded as compressed files and decoded off the main thread (createImageBitmap on the file),
      only for the few frames around the current position, cropped to the screen shape. Scrolling never waits
      on a decode: if a frame isn't ready yet, the last ready one stays on screen.
-     Scroll sets a target, the shown position eases toward it, and neighbouring frames cross-fade. */
+     Scroll sets a target and the frame catches up within a few screen refreshes, stepping through every frame
+     on the way (one crisp frame at a time, no blending). */
   var COUNT = 150, ONLY_EVEN = SMALL || LITE, DIR = window.DP_WALK || 'assets/walk/v3/md/';
   var FW = /\/hd\/$/.test(DIR) ? 1920 : /\/sm\/$/.test(DIR) ? 720 : 1280, FH = Math.round(FW * 9 / 16);
   var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false });
@@ -953,7 +954,6 @@ img { height: auto; }
     for (var d = 1; d < 12; d++) { if (bmps[k - d]) return k - d; if (bmps[k + d]) return k + d; }
     return -1;
   }
-  function nextReady(k) { for (var j = k + 1; j < Math.min(COUNT, k + 9); j++) if (bmps[j]) return j; return -1; }
   function drawFrame(k, alpha) {
     ctx.globalAlpha = alpha;
     var bm = bmps[k];
@@ -962,17 +962,14 @@ img { height: auto; }
     ctx.globalAlpha = 1;
   }
   function repaint() { lastKey = ''; paint(shown); }
+  // one crisp frame at a time, no blending
   function paint(pos) {
-    var a = Math.floor(pos), base = nearestReady(a);
-    if (base < 0) return;                      // nothing decoded yet: keep what is on screen
-    var b = base <= pos ? nextReady(base) : -1, t = 0;
-    if (b > 0) t = clamp((pos - base) / (b - base), 0, 1);
-    t = Math.round(t * 20) / 20;
-    var key = base + ':' + (t > 0 ? b + ':' + t : '');
+    var k = nearestReady(Math.round(pos));
+    if (k < 0) return;                         // nothing decoded yet: keep what is on screen
+    var key = String(k);
     if (key === lastKey) return;
     lastKey = key;
-    drawFrame(base, 1);
-    if (t > 0) drawFrame(b, t);
+    drawFrame(k, 1);
   }
   function load(k) {
     return fetch(DIR + 'f' + String(k).padStart(3, '0') + '.webp')
@@ -985,7 +982,7 @@ img { height: auto; }
   (function tickWalk() {
     if (walkOn) {
       var d = target - shown;
-      if (Math.abs(d) > .002) { shown += d * (RM ? .5 : .16); if (Math.abs(target - shown) < .002) shown = target; paint(shown); }
+      if (Math.abs(d) > .01) { shown += d * .35; if (Math.abs(target - shown) < .5) shown = target; paint(shown); }
       if (Math.floor(shown) !== lastWarm) { lastWarm = Math.floor(shown); warm(); }
     }
     requestAnimationFrame(tickWalk);
