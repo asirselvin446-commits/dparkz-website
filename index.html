@@ -927,18 +927,31 @@ img { height: auto; }
     return -1;
   }
   // next loaded frame after k (skips gaps while odd frames are still arriving)
-  function nextLoaded(k) { for (var j = k + 1; j < Math.min(COUNT, k + 3); j++) if (loaded[j]) return j; return -1; }
+  function nextLoaded(k) { for (var j = k + 1; j < Math.min(COUNT, k + 9); j++) if (loaded[j]) return j; return -1; }
   function drawFrame(k, alpha) {
     ctx.globalAlpha = alpha;
     if (bmps[k]) ctx.drawImage(bmps[k], 0, 0, canvas.width, canvas.height);
     else {
-      var im = imgs[k], cw = canvas.width, ch = canvas.height, s = Math.max(cw / im.naturalWidth, ch / im.naturalHeight);
-      var w = im.naturalWidth * s, h = im.naturalHeight * s;
+      var im = ahead[k] || imgs[k], iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+      var cw = canvas.width, ch = canvas.height, s = Math.max(cw / iw, ch / ih), w = iw * s, h = ih * s;
       ctx.drawImage(im, (cw - w) / 2, (ch - h) / 2, w, h);
     }
     ctx.globalAlpha = 1;
   }
   function repaint() { lastKey = ''; paint(shown); }
+  // computers: keep the frames just around the current position decoded (off the main thread),
+  // so crossing into a new frame never waits for a large image to decode
+  var ahead = {}, aheadBusy = {};
+  function warm(pos) {
+    if (BITMAPS || !window.createImageBitmap) return;
+    var from = Math.max(0, Math.floor(pos) - 3), to = Math.min(COUNT - 1, Math.floor(pos) + 10);
+    Object.keys(ahead).forEach(function (k) { k = +k; if (k < from - 2 || k > to + 2) { ahead[k].close && ahead[k].close(); delete ahead[k]; } });
+    for (var k = from; k <= to; k++) (function (k) {
+      if (!loaded[k] || ahead[k] || aheadBusy[k]) return;
+      aheadBusy[k] = true;
+      createImageBitmap(imgs[k]).then(function (bm) { aheadBusy[k] = false; if (Math.abs(k - shown) > 14) { bm.close && bm.close(); return; } ahead[k] = bm; }, function () { aheadBusy[k] = false; });
+    })(k);
+  }
   function paint(pos) {
     var a = Math.floor(pos), base = nearest(a);
     if (base < 0) return;
@@ -963,9 +976,11 @@ img { height: auto; }
     });
   }
   // ease the shown position toward the scroll position
+  var tickN = 0;
   (function tickWalk() {
     var d = target - shown;
     if (Math.abs(d) > .002) { shown += d * (RM ? .5 : .16); if (Math.abs(target - shown) < .002) shown = target; paint(shown); }
+    if ((tickN = (tickN + 1) % 6) === 0) warm(shown);
     requestAnimationFrame(tickWalk);
   })();
   var rz = 0;
@@ -979,6 +994,8 @@ img { height: auto; }
   if (visited && loader) { loader.remove(); loader = null; } else document.body.classList.add('is-loading');
   var MSGS = ['Setting the table', 'Warming the tandoor', 'Lighting the lamps', 'Opening the doors'];
   var FIRST = SMALL ? 20 : 36, order = [], seen = {};
+  var OPEN = ONLY_EVEN ? 2 : 1;
+  for (var o = 0; o < 24; o += OPEN) { seen[o] = 1; order.push(o); }
   for (var i = 0; i < FIRST; i++) { var f = Math.round(i * 74 / (FIRST - 1)) * 2; if (!seen[f]) { seen[f] = 1; order.push(f); } }
   var done = 0, shown = 0, tick = null;
   if (loader) tick = setInterval(function () {
@@ -992,7 +1009,7 @@ img { height: auto; }
     .then(function () {
       if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
       // fetch the rest a few at a time so the network stays free for the photos
-      var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) rest.push(j);
+      var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) if (!loaded[j]) rest.push(j);
       (function next() { var batch = rest.splice(0, 6); if (!batch.length) return; Promise.all(batch.map(load)).then(next); })();
       start();
     });
