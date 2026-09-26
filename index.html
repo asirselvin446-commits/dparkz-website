@@ -957,7 +957,7 @@ img { height: auto; }
     }
   }
   function startLowTier() {
-    if (!TWO_TIER || lowQueue.length || lowFiles.length) return;
+    if (!TWO_TIER || lowQueue.length || lowFiles.length || lowActive) return;
     // nearest to the current position first, then outward
     var a = Math.round(shown);
     for (var d = 0; d < COUNT; d++) { if (a + d < COUNT) lowQueue.push(a + d); if (d && a - d >= 0) lowQueue.push(a - d); }
@@ -1067,13 +1067,20 @@ img { height: auto; }
   var MSGS = ['Setting the table', 'Warming the tandoor', 'Lighting the lamps', 'Opening the doors'];
   var FIRST = SMALL ? 20 : 36, order = [], seen = {};
   var OPEN = ONLY_EVEN ? 2 : 1;
-  for (var o = 0; o < 24; o += OPEN) { seen[o] = 1; order.push(o); }
-  for (var i = 0; i < FIRST; i++) { var f = Math.round(i * 74 / (FIRST - 1)) * 2; if (!seen[f]) { seen[f] = 1; order.push(f); } }
+  if (TWO_TIER) {
+    // computers: the loader waits for the first full-quality frames plus the light copy of every frame,
+    // so the walk-in is seamless from the very first scroll
+    for (var o = 0; o < 8; o++) { seen[o] = 1; order.push(o); }
+  } else {
+    for (var o2 = 0; o2 < 24; o2 += OPEN) { seen[o2] = 1; order.push(o2); }
+    for (var i = 0; i < FIRST; i++) { var f = Math.round(i * 74 / (FIRST - 1)) * 2; if (!seen[f]) { seen[f] = 1; order.push(f); } }
+  }
   var loadedCount = 0, pct = 0, tick = null;
   if (loader) {
     $('pct-bar').style.width = '100%'; $('pct-bar').style.transformOrigin = '0 50%'; $('pct-bar').style.transform = 'scaleX(0)';
     tick = setInterval(function () {
-      pct += (loadedCount / order.length * 100 - pct) * .25;
+      var total = order.length + (TWO_TIER ? COUNT : 0), got = loadedCount + (TWO_TIER ? lowDone : 0);
+      pct += (got / total * 100 - pct) * .25;
       var p = Math.min(99, pct);
       $('pct-num').textContent = Math.round(p); $('pct-bar').style.transform = 'scaleX(' + p / 100 + ')'; $('pct-msg').textContent = MSGS[Math.min(3, Math.floor(p / 25))];
     }, 50);
@@ -1091,13 +1098,15 @@ img { height: auto; }
       })();
     });
   }
-  Promise.race([Promise.all([loadList(order, 6), fonts, firstShown]), new Promise(function (r) { setTimeout(r, 10000); })])
+  // only the loading screen waits for the light copies; a repeat visit starts at once (they arrive from cache)
+  var lowReady = TWO_TIER ? new Promise(function (res) { onLowDone = res; startLowTier(); }) : Promise.resolve();
+  if (!loader) lowReady = Promise.resolve();
+  Promise.race([Promise.all([loadList(order, 6), fonts, firstShown, lowReady]), new Promise(function (r) { setTimeout(r, 12000); })])
     .then(function () {
       if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
       var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) if (!loaded[j]) rest.push(j);
-      // light copies first (they are what keeps fast scrolling seamless), then the remaining full-quality frames
-      var restStarted = false, startRest = function () { if (!restStarted) { restStarted = true; loadList(rest, 3); } };
-      if (TWO_TIER) { onLowDone = startRest; setTimeout(startRest, 6000); startLowTier(); } else startRest();
+      // then the remaining full-quality frames, a few at a time
+      loadList(rest, 3);
       start();
     });
 
