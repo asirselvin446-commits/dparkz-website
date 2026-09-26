@@ -39,7 +39,7 @@
     var small = window.matchMedia && matchMedia('(max-width: 900px)').matches;
     var lite = document.documentElement.classList.contains('lite');
     var need = window.innerWidth * Math.min(window.devicePixelRatio || 1, 1.5);
-    var dir = 'assets/walk/v3/' + (small ? 'sm' : (need > 1700 && !lite ? 'hd' : 'md')) + '/';
+    var dir = 'assets/walk/v4/' + (small ? 'sm' : (need > 1700 && !lite ? 'hd' : 'md')) + '/';
     window.DP_WALK = dir;
     var l = document.createElement('link'); l.rel = 'preload'; l.as = 'fetch'; l.crossOrigin = 'anonymous'; l.href = dir + 'f000.webp'; l.setAttribute('fetchpriority', 'high');
     document.head.appendChild(l);
@@ -492,7 +492,7 @@ img { height: auto; }
       <div class="walk__hud">
         <span class="dive label label--fg" id="dive"><i></i>Scroll to walk in</span>
         <span class="scrub"><i id="walk-bar"></i></span>
-        <span class="label label--muted num"><span id="walk-frame">001</span> / 150</span>
+        <span class="label label--muted num"><span id="walk-frame">001</span> / 240</span>
       </div>
     </div>
   </section>
@@ -907,12 +907,12 @@ img { height: auto; }
      Frames are downloaded as compressed files and decoded off the main thread (createImageBitmap on the file),
      only for the few frames around the current position, cropped to the screen shape. Scrolling never waits
      on a decode: if a frame isn't ready yet, the last ready one stays on screen.
-     Two tiers on computers: a light 480px copy of EVERY frame is always decoded, so a fast flick never
+     Two tiers on computers: a light 480px copy of every second frame is always decoded, so a fast flick never
      runs out of frames; full-quality frames are decoded around where you are and replace it instantly.
      Phones keep every (720px) frame decoded, which is small enough to hold them all.
      Scroll sets a target and the frame catches up within a few screen refreshes, stepping through every frame
      on the way (one crisp frame at a time, no blending). */
-  var COUNT = 150, ONLY_EVEN = SMALL || LITE, DIR = window.DP_WALK || 'assets/walk/v3/md/';
+  var COUNT = 240, ONLY_EVEN = SMALL || LITE, DIR = window.DP_WALK || 'assets/walk/v4/md/';
   var FW = /\/hd\/$/.test(DIR) ? 1920 : /\/sm\/$/.test(DIR) ? 720 : 1280, FH = Math.round(FW * 9 / 16);
   var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false });
   var files = [], loaded = [], bmps = {}, pending = {}, inFlight = 0, cropKey = '';
@@ -927,7 +927,7 @@ img { height: auto; }
   function crop() { return cropOf(FW, FH); }
 
   // light tier: every frame, 480px, always decoded (computers only)
-  var TWO_TIER = !SMALL && BG, LOW_DIR = 'assets/walk/v3/sm/', LW = 720, LH = 405;
+  var TWO_TIER = !SMALL && BG, LOW_DIR = 'assets/walk/v4/sm/', LOW_COUNT = COUNT / 2, LW = 720, LH = 405;
   var lowFiles = [], lowBmps = {}, lowPend = {}, lowActive = 0, lowQueue = [];
   function makeLow(k) {
     if (!lowFiles[k] || lowPend[k]) return;
@@ -961,7 +961,7 @@ img { height: auto; }
         fetch(LOW_DIR + 'f' + String(k).padStart(3, '0') + '.webp')
           .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
           .then(function (b) { lowFiles[k] = b; decodeQueue.push(k); pumpDecode(); }, function () {})
-          .then(function () { lowActive--; lowDone++; if (lowDone === COUNT && onLowDone) onLowDone(); pumpLow(); });
+          .then(function () { lowActive--; lowDone++; if (lowDone === LOW_COUNT && onLowDone) onLowDone(); pumpLow(); });
       })(k);
     }
   }
@@ -969,7 +969,8 @@ img { height: auto; }
     if (!TWO_TIER || lowQueue.length || lowFiles.length || lowActive) return;
     // nearest to the current position first, then outward
     var a = Math.round(shown);
-    for (var d = 0; d < COUNT; d++) { if (a + d < COUNT) lowQueue.push(a + d); if (d && a - d >= 0) lowQueue.push(a - d); }
+    a -= a % 2;
+    for (var d = 0; d < COUNT; d += 2) { if (a + d < COUNT) lowQueue.push(a + d); if (d && a - d >= 0) lowQueue.push(a - d); }
     pumpLow();
   }
   function dropBitmap(k) { if (bmps[k]) { if (bmps[k].close) bmps[k].close(); delete bmps[k]; } }
@@ -1082,13 +1083,13 @@ img { height: auto; }
     for (var o = 0; o < 8; o++) { seen[o] = 1; order.push(o); }
   } else {
     for (var o2 = 0; o2 < (SMALL ? 12 : 24); o2 += OPEN) { seen[o2] = 1; order.push(o2); }
-    for (var i = 0; i < FIRST; i++) { var f = Math.round(i * 74 / (FIRST - 1)) * 2; if (!seen[f]) { seen[f] = 1; order.push(f); } }
+    for (var i = 0; i < FIRST; i++) { var f = Math.round(i * (COUNT / 2 - 1) / (FIRST - 1)) * 2; if (!seen[f]) { seen[f] = 1; order.push(f); } }
   }
   var loadedCount = 0, pct = 0, tick = null;
   if (loader) {
     $('pct-bar').style.width = '100%'; $('pct-bar').style.transformOrigin = '0 50%'; $('pct-bar').style.transform = 'scaleX(0)';
     tick = setInterval(function () {
-      var total = order.length + (TWO_TIER ? COUNT : 0), got = loadedCount + (TWO_TIER ? lowDone : 0);
+      var total = order.length + (TWO_TIER ? LOW_COUNT : 0), got = loadedCount + (TWO_TIER ? lowDone : 0);
       pct += (got / total * 100 - pct) * .25;
       var p = Math.min(99, pct);
       $('pct-num').textContent = Math.round(p); $('pct-bar').style.transform = 'scaleX(' + p / 100 + ')'; $('pct-msg').textContent = MSGS[Math.min(3, Math.floor(p / 25))];
