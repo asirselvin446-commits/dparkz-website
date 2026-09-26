@@ -933,18 +933,28 @@ img { height: auto; }
       }, function () {})
       .then(function () { lowPend[k] = false; });
   }
-  // light copies are fetched and decoded one by one, only when the browser is idle, so they never compete with scrolling
-  var idle = window.requestIdleCallback || function (fn) { return setTimeout(function () { fn({ timeRemaining: function () { return 8; } }); }, 60); };
-  function pumpLow() {
-    if (lowActive || !lowQueue.length) return;
-    lowActive = 1;
+  // light copies download six at a time (network work, not the page's), and are decoded one by one
+  // only when the browser is idle, so they never compete with scrolling
+  var idle = window.requestIdleCallback || function (fn) { return setTimeout(fn, 30); };
+  var decodeQueue = [], decoding = false, lowDone = 0, onLowDone = null;
+  function pumpDecode() {
+    if (decoding || !decodeQueue.length) return;
+    decoding = true;
     idle(function () {
-      var k = lowQueue.shift();
-      fetch(LOW_DIR + 'f' + String(k).padStart(3, '0') + '.webp')
-        .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
-        .then(function (b) { lowFiles[k] = b; makeLow(k); }, function () {})
-        .then(function () { lowActive = 0; pumpLow(); });
-    }, { timeout: 400 });
+      var k = decodeQueue.shift(); makeLow(k);
+      decoding = false; pumpDecode();
+    }, { timeout: 200 });
+  }
+  function pumpLow() {
+    while (lowActive < 6 && lowQueue.length) {
+      var k = lowQueue.shift(); lowActive++;
+      (function (k) {
+        fetch(LOW_DIR + 'f' + String(k).padStart(3, '0') + '.webp')
+          .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+          .then(function (b) { lowFiles[k] = b; decodeQueue.push(k); pumpDecode(); }, function () {})
+          .then(function () { lowActive--; lowDone++; if (lowDone === COUNT && onLowDone) onLowDone(); pumpLow(); });
+      })(k);
+    }
   }
   function startLowTier() {
     if (!TWO_TIER || lowQueue.length || lowFiles.length) return;
@@ -1085,8 +1095,9 @@ img { height: auto; }
     .then(function () {
       if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
       var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) if (!loaded[j]) rest.push(j);
-      startLowTier();
-      loadList(rest, 3);
+      // light copies first (they are what keeps fast scrolling seamless), then the remaining full-quality frames
+      var restStarted = false, startRest = function () { if (!restStarted) { restStarted = true; loadList(rest, 3); } };
+      if (TWO_TIER) { onLowDone = startRest; setTimeout(startRest, 6000); startLowTier(); } else startRest();
       start();
     });
 
