@@ -32,13 +32,27 @@
 </script>
 <script>
   document.documentElement.classList.add('js');
+  try { var n = navigator, lite = (n.hardwareConcurrency && n.hardwareConcurrency <= 4) || (n.deviceMemory && n.deviceMemory <= 4) || (n.connection && n.connection.saveData); if (lite) document.documentElement.classList.add('lite'); } catch (e) {}
   try { if (sessionStorage.getItem('dp-visited')) document.documentElement.classList.add('visited'); } catch (e) {}
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Manrope:wght@400;500;600;700;800&display=swap">
-<link rel="preload" as="image" href="assets/seq/f000.webp">
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/playfair-display-latin-700-normal.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/manrope-latin-800-normal.woff2" crossorigin>
+<link rel="preload" as="image" href="assets/seq/f000.webp" media="(min-width: 901px)">
+<link rel="preload" as="image" href="assets/seq-sm/f000.webp" media="(max-width: 900px)">
 <style>
+/* ===================== Fonts (self-hosted) ===================== */
+@font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/playfair-display-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Playfair Display'; font-style: italic; font-weight: 400; font-display: swap; src: url(assets/fonts/playfair-display-latin-400-italic.woff2) format('woff2'); }
+@font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 600; font-display: swap; src: url(assets/fonts/playfair-display-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Playfair Display'; font-style: italic; font-weight: 600; font-display: swap; src: url(assets/fonts/playfair-display-latin-600-italic.woff2) format('woff2'); }
+@font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 700; font-display: swap; src: url(assets/fonts/playfair-display-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Playfair Display'; font-style: italic; font-weight: 700; font-display: swap; src: url(assets/fonts/playfair-display-latin-700-italic.woff2) format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/manrope-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/manrope-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-weight: 600; font-display: swap; src: url(assets/fonts/manrope-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-weight: 700; font-display: swap; src: url(assets/fonts/manrope-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Manrope'; font-style: normal; font-weight: 800; font-display: swap; src: url(assets/fonts/manrope-latin-800-normal.woff2) format('woff2'); }
+
 /* ===================== Tokens ===================== */
 :root {
   --paper: #E8D5B0; --paper-lt: #F3E5C7;
@@ -171,9 +185,9 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 
 /* Plate + print + rows */
 .plate { display: flex; flex-direction: column; gap: 12px; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
-.plate__img { position: relative; aspect-ratio: 4/3; overflow: hidden; border-radius: 4px; box-shadow: var(--shadow); transition: transform .7s var(--ease), box-shadow .7s var(--ease); }
+.plate__img { position: relative; display: block; aspect-ratio: 4/3; overflow: hidden; border-radius: 4px; box-shadow: var(--shadow); }
 .plate__img img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.1); transition: transform 1.2s var(--ease); }
-.plate:hover .plate__img, .plate:focus-visible .plate__img { transform: translateY(-10px); box-shadow: var(--shadow-lg); }
+.plate:hover .plate__img, .plate:focus-visible .plate__img { box-shadow: var(--shadow-lg); }
 .plate:hover .plate__img img { transform: scale(1.16); }
 .plate__cap { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .plate__cap b { font-family: var(--serif); font-weight: 600; font-size: clamp(20px, 1.8vw, 26px); }
@@ -223,7 +237,7 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 
 /* ===================== Sections ===================== */
 /* Walk-in */
-.walk { position: relative; height: 560vh; }
+.walk { position: relative; }
 .walk__pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: var(--night); }
 .walk__canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .walk__shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(27,18,11,.6) 0%, rgba(27,18,11,0) 26%, rgba(27,18,11,0) 56%, rgba(27,18,11,.88) 100%); }
@@ -311,7 +325,7 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 .band__copy h2 { font-size: clamp(56px, 10vw, 160px); line-height: .9; color: var(--paper-lt); }
 
 /* Gallery */
-.float { position: relative; max-width: var(--max); margin: 0 auto; height: clamp(1700px, 170vw, 2500px); }
+.float { position: relative; max-width: var(--max); margin: 0 auto; height: clamp(1500px, 150vw, 2200px); }
 @media (max-width: 760px) {
   .float { height: auto; display: flex; flex-direction: column; gap: 32px; }
   .float .print { position: relative; left: auto !important; top: auto !important; width: 100% !important; }
@@ -350,6 +364,43 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 .footer__base { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 32px; font-size: 12px; color: var(--muted); }
 @media (max-width: 800px) { .footer__col { grid-column: span 6; } }
 @media (max-width: 480px) { .footer__col { grid-column: 1 / -1; } }
+
+
+/* ===================== Performance + motion upgrades ===================== */
+.walk { height: 560vh; height: 560svh; }
+.walk__canvas { transform: scale(1.06); will-change: transform; transform-origin: 50% 50%; }
+.walk__dim { position: absolute; inset: 0; background: var(--night); opacity: 0; pointer-events: none; }
+#story { border-radius: 56px 56px 0 0; margin-top: -1px; z-index: 2; }
+.grain { will-change: transform; }
+.lite .grain, .lite .layer--disc svg { display: none; animation: none; }
+@media (hover: none), (max-width: 900px) { .grain { display: none; } }
+@media (max-width: 760px) { .walk { height: 420vh; height: 420svh; } #story { border-radius: 32px 32px 0 0; } }
+
+/* Buttons: text rolls up on hover */
+.btn__t { display: inline-grid; overflow: hidden; line-height: 1.4; }
+.btn__t > span { grid-area: 1 / 1; transition: transform .6s var(--ease); }
+.btn__t > span + span { transform: translateY(110%); }
+.btn:hover .btn__t > span:first-child, .btn:focus-visible .btn__t > span:first-child { transform: translateY(-110%); }
+.btn:hover .btn__t > span + span, .btn:focus-visible .btn__t > span + span { transform: translateY(0); }
+
+/* Plates: 3D tilt under the cursor */
+.plate__img { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px)); transition: transform .6s var(--ease), box-shadow .7s var(--ease); }
+.plate:hover .plate__img, .plate:focus-visible .plate__img { --ty: -10px; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-10px); }
+.plate__img::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(255,236,200,.28), rgba(255,236,200,0) 55%); }
+.plate:hover .plate__img::after { opacity: 1; }
+
+/* Marquee is driven by script (scroll-reactive); CSS animation is only the no-JS fallback */
+.js .marquee__track { animation: none; }
+.marquee__track { will-change: transform; }
+
+/* Footer wordmark letters */
+.footer__word .ch { display: inline-block; will-change: transform; }
+
+img { height: auto; }
+.plate__img img, .print__img img, .signature img, .layer--photo img, .band__img img, .shot img, .preview img, .lightbox__media img { height: 100%; }
+.shot img { height: auto; }
+.lightbox__media img { height: auto; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
@@ -400,6 +451,7 @@ h1 em, h2 em, h3 em { font-weight: 400; }
     <div class="walk__pin">
       <canvas class="walk__canvas" id="walk-canvas" role="img" aria-label="Walking from the garden entrance into the D'PARKZ dining room"></canvas>
       <div class="walk__shade"></div>
+      <div class="walk__dim" id="walk-dim"></div>
       <div class="beat beat--1 is-on" id="beat-1">
         <h1 class="split" data-split="manual">D'PARKZ</h1>
         <div class="side" id="beat-1-side">
@@ -439,7 +491,7 @@ h1 em, h2 em, h3 em { font-weight: 400; }
           <div class="btn-row" data-reveal><a class="btn btn--solid" href="#food" data-cur="VIEW">See the food</a><a class="btn" href="#visit" data-cur="VIEW" style="--fg:var(--brown-dk)">Find us</a></div>
         </div>
         <div class="layers" id="layers" aria-hidden="true">
-          <div class="layer layer--photo" data-depth="10"><img src="assets/img/photo-ceiling.jpg" alt="" loading="lazy"></div>
+          <div class="layer layer--photo" data-depth="10"><img src="assets/img/photo-ceiling.webp" srcset="assets/img/photo-ceiling-sm.webp 640w, assets/img/photo-ceiling.webp 1600w" sizes="(max-width: 760px) 50vw, 45vw" width="1600" height="900" alt="" loading="lazy" decoding="async"></div>
           <div class="layer layer--disc" data-depth="35">
             <svg viewBox="0 0 320 320"><defs><path id="ring" d="M160 160 m-118 0 a118 118 0 1 1 236 0 a118 118 0 1 1 -236 0"/></defs>
               <text font-family="Manrope, sans-serif" font-size="13" font-weight="800" letter-spacing="5" fill="#F3E5C7"><textPath href="#ring">GOOD FOOD · GOOD COMPANY · GOOD MEMORIES · </textPath></text></svg>
@@ -454,15 +506,15 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 
       <div class="signature">
         <figure>
-          <a class="frame" href="#food" data-clip data-cur="VIEW"><img src="assets/img/dish-dynamite-chicken.jpg" alt="Dynamite Chicken" loading="lazy"></a>
+          <a class="frame" href="#food" data-clip data-cur="VIEW"><img src="assets/img/dish-dynamite-chicken.webp" srcset="assets/img/dish-dynamite-chicken-sm.webp 640w, assets/img/dish-dynamite-chicken.webp 925w" sizes="(max-width: 760px) 50vw, 45vw" width="925" height="520" alt="Dynamite Chicken" loading="lazy" decoding="async"></a>
           <figcaption><b>Dynamite Chicken</b><span>Starter</span></figcaption>
         </figure>
         <figure data-parallax=".6">
-          <a class="frame" href="#food" data-clip data-cur="VIEW"><img src="assets/img/dish-mutton-biryani.jpg" alt="Mutton Biryani" loading="lazy"></a>
+          <a class="frame" href="#food" data-clip data-cur="VIEW"><img src="assets/img/dish-mutton-biryani.webp" srcset="assets/img/dish-mutton-biryani-sm.webp 640w, assets/img/dish-mutton-biryani.webp 1190w" sizes="(max-width: 760px) 50vw, 45vw" width="1190" height="665" alt="Mutton Biryani" loading="lazy" decoding="async"></a>
           <figcaption><b>Mutton Biryani</b><span>Biryani</span></figcaption>
         </figure>
         <figure data-parallax=".3">
-          <a class="frame" href="#food" data-clip data-cur="VIEW"><img src="assets/img/dish-caramel-custard.jpg" alt="Caramel Custard" loading="lazy"></a>
+          <a class="frame" href="#food" data-clip data-cur="VIEW"><img src="assets/img/dish-caramel-custard.webp" srcset="assets/img/dish-caramel-custard-sm.webp 640w, assets/img/dish-caramel-custard.webp 1190w" sizes="(max-width: 760px) 50vw, 45vw" width="1190" height="665" alt="Caramel Custard" loading="lazy" decoding="async"></a>
           <figcaption><b>Caramel Custard</b><span>Dessert</span></figcaption>
         </figure>
       </div>
@@ -504,7 +556,7 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 
   <!-- Atmosphere -->
   <section class="band" id="atmosphere" aria-labelledby="atmo-h">
-    <div class="band__img" id="band-img"><img src="assets/img/photo-room.jpg" alt="The D'PARKZ dining room with wooden tables, gold lamps and plants" loading="lazy"></div>
+    <div class="band__img" id="band-img"><img src="assets/img/photo-room.webp" srcset="assets/img/photo-room-sm.webp 640w, assets/img/photo-room.webp 1600w" sizes="(max-width: 760px) 50vw, 100vw" width="1600" height="900" alt="The D'PARKZ dining room with wooden tables, gold lamps and plants" loading="lazy" decoding="async"></div>
     <div class="band__copy">
       <span class="label" style="color:var(--paper)">The atmosphere</span>
       <h2 id="atmo-h" class="split">Where flavour <em>meets ambience.</em></h2>
@@ -541,7 +593,7 @@ h1 em, h2 em, h3 em { font-weight: 400; }
         </dl>
       </div>
       <div class="visit__b">
-        <figure class="shot" data-clip><img src="assets/img/storefront.jpg" alt="The D'PARKZ restaurant building in Thakkamalpuram" loading="lazy"><figcaption>The restaurant<span>THAKKAMALPURAM</span></figcaption></figure>
+        <figure class="shot" data-clip><img src="assets/img/storefront.webp" srcset="assets/img/storefront-sm.webp 640w, assets/img/storefront.webp 1286w" sizes="(max-width: 760px) 50vw, 45vw" width="1286" height="618" alt="The D'PARKZ restaurant building in Thakkamalpuram" loading="lazy" decoding="async"><figcaption>The restaurant<span>THAKKAMALPURAM</span></figcaption></figure>
         <span class="label label--rule">Visit us</span>
         <h2 id="visit-h" class="h2" style="color:var(--teal)">D'PARKZ</h2>
         <address>Opp. to Anamalis Toyota, Thakkamalpuram,<br>Anton Nagar, Muthur Reddiarpatti,<br>Tamil Nadu 627005</address>
@@ -593,54 +645,76 @@ h1 em, h2 em, h3 em { font-weight: 400; }
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script src="assets/vendor/gsap.min.js"></script>
+<script src="assets/vendor/ScrollTrigger.min.js"></script>
+<script src="assets/vendor/lenis.min.js"></script>
 <script>
 (function () {
   'use strict';
   var mq = function (q) { return !!(window.matchMedia && matchMedia(q).matches); };
-  var RM = mq('(prefers-reduced-motion: reduce)'), FINE = mq('(hover: hover) and (pointer: fine)'), MOBILE = mq('(max-width: 760px)');
+  var RM = mq('(prefers-reduced-motion: reduce)');
+  var FINE = mq('(hover: hover) and (pointer: fine)');
+  var MOBILE = mq('(max-width: 760px)');
+  var SMALL = mq('(max-width: 900px)');
+  var LITE = document.documentElement.classList.contains('lite');
   var GS = !!(window.gsap && window.ScrollTrigger);
-  if (GS) gsap.registerPlugin(ScrollTrigger);
+  if (GS) {
+    gsap.registerPlugin(ScrollTrigger);
+    // phones: don't recalculate everything when the address bar slides in and out
+    ScrollTrigger.config({ ignoreMobileResize: true });
+  }
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   var $ = function (id) { return document.getElementById(id); };
   var mouse = { x: -400, y: -400, nx: 0, ny: 0 };
   var lenis = null;
   $('year').textContent = new Date().getFullYear();
 
+  /* Run a function only while an element is on screen */
+  function whileVisible(el, fn) {
+    var on = false, raf = 0;
+    function loop() { fn(); raf = on ? requestAnimationFrame(loop) : 0; }
+    new IntersectionObserver(function (e) {
+      on = e[0].isIntersecting;
+      if (on && !raf) raf = requestAnimationFrame(loop);
+    }, { rootMargin: '100px' }).observe(el);
+  }
+
   /* ---------------- Content ---------------- */
   var BLOSSOM = '<svg viewBox="0 0 200 260" aria-hidden="true"><path d="M52 60h96l-12 186a10 10 0 0 1-10 9H74a10 10 0 0 1-10-9z" fill="rgba(243,229,199,.12)" stroke="rgba(243,229,199,.7)" stroke-width="2"/><path d="M58 110h84l-8 132a8 8 0 0 1-8 7H74a8 8 0 0 1-8-7z" fill="#7d9cd6"/><ellipse cx="100" cy="110" rx="42" ry="8" fill="#F3E5C7" opacity=".9"/><path d="M128 10l-14 120" stroke="#F3E5C7" stroke-width="5" stroke-linecap="round"/><g transform="translate(100 62)"><g fill="#3E5FA3"><ellipse rx="9" ry="20" transform="translate(0 -20)"/><ellipse rx="9" ry="20" transform="rotate(72) translate(0 -20)"/><ellipse rx="9" ry="20" transform="rotate(144) translate(0 -20)"/><ellipse rx="9" ry="20" transform="rotate(216) translate(0 -20)"/><ellipse rx="9" ry="20" transform="rotate(288) translate(0 -20)"/></g><circle r="7" fill="#F2C84B"/></g></svg>';
   var DISHES = [
-    ['Dynamite Chicken', 'dish-dynamite-chicken.jpg', 'Starter', 'Crisp, glossy and fired with chilli.'],
-    ['Dynamite Prawns', 'dish-dynamite-prawns.jpg', 'Starter', 'Tossed with peppers, onion and spring onion.'],
-    ['Dragon Chicken', 'dish-dragon-chicken.jpg', 'Starter', 'The Indo-Chinese signature, dark and sticky.'],
-    ['Mutton Biryani', 'dish-mutton-biryani.jpg', 'Biryani', 'Served in the vessel, with raita and gravy.'],
-    ['Butter Naan', 'dish-butter-naan.jpg', 'Bread', 'Blistered from the tandoor, brushed with butter.'],
-    ['Tandoori Chicken', 'dish-tandoori-chicken.jpg', 'Tandoor', 'Charred edges, onion, lime and green chilli.'],
-    ['Fish Finger', 'dish-fish-finger.jpg', 'Starter', 'Golden crumb with a cool tartare.'],
-    ['Caramel Custard', 'dish-caramel-custard.jpg', 'Dessert', 'Set, turned out and glazed in caramel.'],
+    ['Dynamite Chicken', 'dish-dynamite-chicken', 'Starter', 'Crisp, glossy and fired with chilli.'],
+    ['Dynamite Prawns', 'dish-dynamite-prawns', 'Starter', 'Tossed with peppers, onion and spring onion.'],
+    ['Dragon Chicken', 'dish-dragon-chicken', 'Starter', 'The Indo-Chinese signature, dark and sticky.'],
+    ['Mutton Biryani', 'dish-mutton-biryani', 'Biryani', 'Served in the vessel, with raita and gravy.'],
+    ['Butter Naan', 'dish-butter-naan', 'Bread', 'Blistered from the tandoor, brushed with butter.'],
+    ['Tandoori Chicken', 'dish-tandoori-chicken', 'Tandoor', 'Charred edges, onion, lime and green chilli.'],
+    ['Fish Finger', 'dish-fish-finger', 'Starter', 'Golden crumb with a cool tartare.'],
+    ['Caramel Custard', 'dish-caramel-custard', 'Dessert', 'Set, turned out and glazed in caramel.'],
     ['Blue Blossom Milkshake', null, 'Shake', 'Butterfly-pea blue, finished with a blossom.']
-  ].map(function (d, i) { return { title: d[0], src: d[1] ? 'assets/img/' + d[1] : null, cat: d[2], note: d[3], no: String(i + 1).padStart(2, '0') }; });
+  ].map(function (d, i) { return { title: d[0], base: d[1], cat: d[2], note: d[3], no: String(i + 1).padStart(2, '0') }; });
   var PRINTS = [
-    ['The dining room', 'photo-room.jpg'], ['Dynamite Chicken', 'dish-dynamite-chicken.jpg'], ['The flower ceiling', 'photo-ceiling.jpg'],
-    ['Mutton Biryani', 'dish-mutton-biryani.jpg'], ['Through the glass', 'photo-doors.jpg'], ['From the tandoor', 'dish-tandoori-chicken.jpg'],
-    ['The restaurant', 'storefront.jpg'], ['Caramel Custard', 'dish-caramel-custard.jpg'], ['Dynamite Prawns', 'dish-dynamite-prawns.jpg'], ['Butter Naan', 'dish-butter-naan.jpg']
-  ].map(function (p, i) { return { title: p[0], src: 'assets/img/' + p[1], cat: 'Gallery', note: '', no: String(i + 1).padStart(2, '0') }; });
+    ['The dining room', 'photo-room'], ['Dynamite Chicken', 'dish-dynamite-chicken'], ['The flower ceiling', 'photo-ceiling'],
+    ['Mutton Biryani', 'dish-mutton-biryani'], ['Through the glass', 'photo-doors'], ['From the tandoor', 'dish-tandoori-chicken'],
+    ['The restaurant', 'storefront'], ['Caramel Custard', 'dish-caramel-custard'], ['Dynamite Prawns', 'dish-dynamite-prawns'], ['Butter Naan', 'dish-butter-naan']
+  ].map(function (p, i) { return { title: p[0], base: p[1], cat: 'Gallery', note: '', no: String(i + 1).padStart(2, '0') }; });
   var LAYOUT = [[2,0,44,-3,.5],[56,140,30,4,1.1],[30,620,40,2,.3],[76,700,22,-5,1.4],[4,1060,34,-2,.8],[48,1150,32,3,.4],[12,1560,42,2,1],[64,1640,28,-4,.6],[70,2060,26,3,1.2],[8,2080,30,-3,.5]];
   var arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  var full = function (b) { return 'assets/img/' + b + '.webp'; };
+  var pic = function (b, alt, sizes) {
+    return '<img src="' + full(b) + '" srcset="assets/img/' + b + '-sm.webp 640w, ' + full(b) + ' 1600w" sizes="' + sizes + '" alt="' + alt + '" loading="lazy" decoding="async">';
+  };
 
   var names = DISHES.map(function (d) { return '<span>' + d.title + '</span>'; }).join('');
   $('marquee').innerHTML = names + names;
   DISHES.forEach(function (d, i) {
     var p = document.createElement('button');
     p.type = 'button'; p.className = 'plate'; p.dataset.cur = 'EXPLORE'; p.setAttribute('aria-label', 'Open ' + d.title);
-    p.innerHTML = '<span class="plate__img' + (d.src ? '' : ' blossom') + '">' + (d.src ? '<img src="' + d.src + '" alt="' + d.title + '" loading="lazy">' : BLOSSOM) + '</span>' +
+    p.innerHTML = '<span class="plate__img' + (d.base ? '' : ' blossom') + '">' + (d.base ? pic(d.base, d.title, '(max-width: 760px) 50vw, 34vw') : BLOSSOM) + '</span>' +
       '<span class="plate__cap"><b>' + d.title + '</b><span>' + d.no + ' · ' + d.cat + '</span></span>';
     p.addEventListener('click', function () { openLb(DISHES, i); });
     $('track').appendChild(p);
     var r = document.createElement('button');
-    r.type = 'button'; r.className = 'row'; r.dataset.cur = 'EXPLORE'; if (d.src) r.dataset.preview = d.src;
+    r.type = 'button'; r.className = 'row'; r.dataset.cur = 'EXPLORE'; if (d.base) r.dataset.preview = 'assets/img/' + d.base + '-sm.webp';
     r.innerHTML = '<span class="row__no">' + d.no + '</span><span class="row__title">' + d.title + '</span><span class="row__meta">' + d.cat + ' ' + arrow + '</span>';
     r.addEventListener('click', function () { openLb(DISHES, i); });
     $('rows').appendChild(r);
@@ -650,9 +724,20 @@ h1 em, h2 em, h3 em { font-weight: 400; }
     b.type = 'button'; b.className = 'print'; b.dataset.cur = 'EXPLORE'; b.dataset.drift = L[4]; b.dataset.rot = L[3];
     b.style.left = L[0] + '%'; b.style.top = L[1] + 'px'; b.style.width = L[2] + '%'; b.style.transform = 'rotate(' + L[3] + 'deg)';
     b.setAttribute('aria-label', 'Open ' + p.title);
-    b.innerHTML = '<span class="print__img"><img src="' + p.src + '" alt="' + p.title + '" loading="lazy"></span><span class="print__cap">' + p.title + '</span><span class="print__no">' + p.no + '</span>';
+    b.innerHTML = '<span class="print__img">' + pic(p.base, p.title, '(max-width: 760px) 50vw, 40vw') + '</span><span class="print__cap">' + p.title + '</span><span class="print__no">' + p.no + '</span>';
     b.addEventListener('click', function () { openLb(PRINTS, i); });
     $('float').appendChild(b);
+  });
+
+  // Buttons: duplicate the label so it can roll up on hover
+  document.querySelectorAll('.btn').forEach(function (b) {
+    var t = Array.prototype.filter.call(b.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); })[0];
+    if (!t) return;
+    var label = t.textContent.trim(), wrap = document.createElement('span');
+    wrap.className = 'btn__t';
+    wrap.innerHTML = '<span></span><span aria-hidden="true"></span>';
+    wrap.children[0].textContent = label; wrap.children[1].textContent = label;
+    b.replaceChild(wrap, t);
   });
 
   /* ---------------- Lightbox ---------------- */
@@ -660,8 +745,10 @@ h1 em, h2 em, h3 em { font-weight: 400; }
   function lbDraw() {
     var it = lbSet[lbI], m = $('lb-media');
     m.classList.remove('is-in'); void m.offsetWidth; m.classList.add('is-in');
-    m.innerHTML = it.src ? '<img src="' + it.src + '" alt="' + it.title + '">' : '<div class="blossom">' + BLOSSOM + '</div>';
+    m.innerHTML = it.base ? '<img src="' + full(it.base) + '" alt="' + it.title + '" decoding="async">' : '<div class="blossom">' + BLOSSOM + '</div>';
     $('lb-no').textContent = it.no + ' · ' + it.cat; $('lb-title').textContent = it.title; $('lb-note').textContent = it.note;
+    // warm the neighbours so next/previous are instant
+    [lbI - 1, lbI + 1].forEach(function (k) { var n = lbSet[(k + lbSet.length) % lbSet.length]; if (n.base) { var im = new Image(); im.src = full(n.base); } });
   }
   function openLb(set, i) { lbSet = set; lbI = i; lbFrom = document.activeElement; lbDraw(); $('lb').hidden = false; if (lenis) lenis.stop(); $('lb-close').focus(); }
   function closeLb() { $('lb').hidden = true; if (lenis) lenis.start(); if (lbFrom) lbFrom.focus(); }
@@ -669,6 +756,15 @@ h1 em, h2 em, h3 em { font-weight: 400; }
   $('lb-prev').onclick = function () { lbI = (lbI - 1 + lbSet.length) % lbSet.length; lbDraw(); };
   $('lb-next').onclick = function () { lbI = (lbI + 1) % lbSet.length; lbDraw(); };
   $('lb').addEventListener('click', function (e) { if (e.target === $('lb')) closeLb(); });
+  // swipe between images on touch screens
+  (function () {
+    var sx = 0, sy = 0;
+    $('lb').addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    $('lb').addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? $('lb-next') : $('lb-prev')).click();
+    }, { passive: true });
+  })();
 
   /* ---------------- Menu ---------------- */
   function setMenu(open) {
@@ -685,9 +781,9 @@ h1 em, h2 em, h3 em { font-weight: 400; }
     if (!$('lb').hidden && e.key === 'ArrowLeft') $('lb-prev').click();
   });
 
-  /* ---------------- Smooth scroll + anchors ---------------- */
-  if (!RM && window.Lenis) {
-    lenis = new Lenis({ lerp: .085, smoothWheel: true });
+  /* ---------------- Smooth scroll (wheel only; touch stays native) ---------------- */
+  if (!RM && FINE && window.Lenis) {
+    lenis = new Lenis({ lerp: .1, smoothWheel: true, wheelMultiplier: 1 });
     if (GS) { lenis.on('scroll', ScrollTrigger.update); gsap.ticker.add(function (t) { lenis.raf(t * 1000); }); gsap.ticker.lagSmoothing(0); }
     else (function raf(t) { lenis.raf(t); requestAnimationFrame(raf); })(0);
   }
@@ -702,10 +798,10 @@ h1 em, h2 em, h3 em { font-weight: 400; }
     else t.scrollIntoView({ behavior: RM ? 'auto' : 'smooth' });
   });
 
-  /* ---------------- Cursor, preview, magnetic ---------------- */
+  /* ---------------- Cursor, preview, magnetic, plate tilt (desktop mouse only) ---------------- */
   window.addEventListener('pointermove', function (e) { mouse.x = e.clientX; mouse.y = e.clientY; mouse.nx = e.clientX / innerWidth * 2 - 1; mouse.ny = e.clientY / innerHeight * 2 - 1; }, { passive: true });
   if (FINE && !RM) {
-    var cur = $('cursor'), pv = $('preview'), pvImg = pv.querySelector('img'), cx = -100, cy = -100, px = -400, py = -400;
+    var cur = $('cursor'), pv = $('preview'), pvImg = pv.querySelector('img'), cx = -100, cy = -100, px = -400, py = -400, idle = 0;
     document.addEventListener('pointerover', function (e) {
       var t = e.target.closest && e.target.closest('[data-cur]');
       if (t) { cur.textContent = t.dataset.cur; cur.classList.add('is-big'); } else { cur.textContent = ''; cur.classList.remove('is-big'); }
@@ -713,39 +809,54 @@ h1 em, h2 em, h3 em { font-weight: 400; }
       if (p) { if (pvImg.getAttribute('src') !== p.dataset.preview) pvImg.src = p.dataset.preview; pv.classList.add('is-on'); } else pv.classList.remove('is-on');
     });
     (function loop() {
-      cx += (mouse.x - cx) * .3; cy += (mouse.y - cy) * .3; px += (mouse.x - px) * .12; py += (mouse.y - py) * .12;
-      cur.style.transform = 'translate(' + cx + 'px,' + cy + 'px)';
-      pv.style.transform = 'translate(' + px + 'px,' + py + 'px) rotate(' + clamp((mouse.x - px) * .05, -8, 8) + 'deg)';
+      var dx = mouse.x - cx, dy = mouse.y - cy;
+      if (Math.abs(dx) + Math.abs(dy) + Math.abs(mouse.x - px) + Math.abs(mouse.y - py) > .3) {
+        cx += dx * .3; cy += dy * .3; px += (mouse.x - px) * .12; py += (mouse.y - py) * .12;
+        cur.style.transform = 'translate3d(' + cx + 'px,' + cy + 'px,0)';
+        pv.style.transform = 'translate3d(' + px + 'px,' + py + 'px,0) rotate(' + clamp((mouse.x - px) * .05, -8, 8) + 'deg)';
+      }
       requestAnimationFrame(loop);
     })();
     document.querySelectorAll('.btn, .icon-btn').forEach(function (b) {
-      b.addEventListener('pointermove', function (e) { var r = b.getBoundingClientRect(); b.style.transform = 'translate(' + ((e.clientX - r.left - r.width / 2) * .25) + 'px,' + ((e.clientY - r.top - r.height / 2) * .3) + 'px)'; });
+      b.addEventListener('pointermove', function (e) { var r = b.getBoundingClientRect(); b.style.transform = 'translate(' + ((e.clientX - r.left - r.width / 2) * .22) + 'px,' + ((e.clientY - r.top - r.height / 2) * .28) + 'px)'; });
       b.addEventListener('pointerleave', function () { b.style.transform = ''; });
+    });
+    document.querySelectorAll('.plate__img').forEach(function (el) {
+      el.addEventListener('pointermove', function (e) {
+        var r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        el.style.setProperty('--ry', ((x - .5) * 12).toFixed(2) + 'deg');
+        el.style.setProperty('--rx', ((.5 - y) * 10).toFixed(2) + 'deg');
+        el.style.setProperty('--gx', (x * 100).toFixed(1) + '%');
+        el.style.setProperty('--gy', (y * 100).toFixed(1) + '%');
+      });
+      el.addEventListener('pointerleave', function () { el.style.setProperty('--rx', '0deg'); el.style.setProperty('--ry', '0deg'); });
     });
   }
 
-  /* ---------------- Nav state ---------------- */
+  /* ---------------- Nav state (throttled to one update per frame) ---------------- */
   (function () {
-    var nav = $('nav'), bar = $('nav-bar'), links = nav.querySelectorAll('.nav__links a'), last = 0;
-    var ids = ['story', 'food', 'atmosphere', 'gallery', 'visit'];
+    var nav = $('nav'), bar = $('nav-bar'), links = nav.querySelectorAll('.nav__links a'), last = 0, queued = false;
+    var ids = ['story', 'food', 'atmosphere', 'gallery', 'visit'], paperEls = document.querySelectorAll('[data-nav]');
     function update() {
+      queued = false;
       var y = window.scrollY, max = document.documentElement.scrollHeight - innerHeight;
-      bar.style.width = (max > 0 ? y / max * 100 : 0) + '%';
+      bar.style.transform = 'scaleX(' + (max > 0 ? y / max : 0) + ')';
       var paper = false;
-      document.querySelectorAll('[data-nav]').forEach(function (s) { var r = s.getBoundingClientRect(); if (r.top <= 40 && r.bottom > 40) paper = true; });
+      paperEls.forEach(function (s) { var r = s.getBoundingClientRect(); if (r.top <= 40 && r.bottom > 40) paper = true; });
       nav.classList.toggle('is-paper', paper);
       var active = '';
       ids.forEach(function (id) { var r = $(id).getBoundingClientRect(); if (r.top <= innerHeight * .4 && r.bottom > innerHeight * .4) active = id; });
       links.forEach(function (a) { a.classList.toggle('is-active', a.getAttribute('href') === '#' + active); });
-      var down = y > last + 4, up = y < last - 4;
-      if (y < 300 || up) nav.classList.remove('is-hidden'); else if (down) nav.classList.add('is-hidden');
+      if (y < 300 || y < last - 4) nav.classList.remove('is-hidden'); else if (y > last + 4) nav.classList.add('is-hidden');
       last = y;
     }
-    window.addEventListener('scroll', update, { passive: true }); update();
+    bar.style.width = '100%'; bar.style.transformOrigin = '0 50%'; bar.style.transform = 'scaleX(0)';
+    window.addEventListener('scroll', function () { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
+    update();
   })();
 
   /* ---------------- Split text ---------------- */
-  function splitNode(node) {
+  function splitNode(node, cls) {
     Array.prototype.slice.call(node.childNodes).forEach(function (n) {
       if (n.nodeType === 3) {
         var frag = document.createDocumentFragment();
@@ -766,38 +877,74 @@ h1 em, h2 em, h3 em { font-weight: 400; }
     if (!GS || RM || el.dataset.split === 'manual') return;
     gsap.from(el.querySelectorAll('.wi'), { yPercent: 115, rotate: 4, duration: 1.2, ease: 'expo.out', stagger: .035, scrollTrigger: { trigger: el, start: 'top 88%' } });
   });
+  // footer wordmark, letter by letter
+  (function () {
+    var fw = $('footer-word'), txt = fw.textContent;
+    fw.innerHTML = txt.split('').map(function (c) { return '<span class="ch">' + c + '</span>'; }).join('');
+  })();
 
-  /* ---------------- Walk-in frames ---------------- */
-  var FRAMES = 150, FIRST = 40;
-  var canvas = $('walk-canvas'), ctx = canvas.getContext('2d'), imgs = [], loaded = [], current = -1, wanted = 0;
-  function sizeCanvas() {
-    var dpr = Math.min(window.devicePixelRatio || 1, MOBILE ? 1.5 : 2);
-    canvas.width = Math.round(canvas.clientWidth * dpr); canvas.height = Math.round(canvas.clientHeight * dpr);
-    current = -1; draw(wanted);
+  /* ---------------- Walk-in frames ----------------
+     Small screens get 720px frames and every second frame (75 images, about 2 MB).
+     The canvas only repaints when the frame changes; the cursor drift is a CSS transform. */
+  var TOTAL = 150, STEP = (SMALL || LITE) ? 2 : 1, COUNT = Math.ceil(TOTAL / STEP);
+  var DIR = SMALL ? 'assets/seq-sm/' : 'assets/seq/';
+  var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false }), imgs = [], loaded = [], current = -1, wanted = 0;
+  // phones keep each frame pre-decoded and pre-cropped to the screen shape, so scrolling never waits on a decode
+  var BITMAPS = SMALL && !!window.createImageBitmap, bmps = [], cropKey = '';
+  function cropFor(im) {
+    var c = canvas.width / canvas.height, iw = im.naturalWidth, ih = im.naturalHeight;
+    if (iw / ih > c) { var sw = ih * c; return [(iw - sw) / 2, 0, sw, ih]; }
+    var sh = iw / c; return [0, (ih - sh) / 2, iw, sh];
   }
-  function nearest(i) {
-    if (loaded[i]) return i;
-    for (var d = 1; d < FRAMES; d++) { if (i - d >= 0 && loaded[i - d]) return i - d; if (i + d < FRAMES && loaded[i + d]) return i + d; }
+  function makeBitmap(k) {
+    var im = imgs[k], cr = cropFor(im), key = cropKey;
+    return createImageBitmap(im, Math.round(cr[0]), Math.round(cr[1]), Math.round(cr[2]), Math.round(cr[3])).then(function (bm) {
+      if (key !== cropKey) { bm.close && bm.close(); return; }
+      if (bmps[k] && bmps[k].close) bmps[k].close();
+      bmps[k] = bm; if (Math.abs(k - wanted) < 2) { current = -1; paint(wanted); }
+    }, function () {});
+  }
+  var lastW = 0, lastH = 0;
+  function sizeCanvas(force) {
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    // ignore small height changes (phone address bar)
+    if (!force && w === lastW && Math.abs(h - lastH) < 120) return;
+    lastW = w; lastH = h;
+    var dpr = Math.min(window.devicePixelRatio || 1, (LITE || SMALL) ? 1 : 1.5), maxW = SMALL ? 720 : 1920;
+    var scale = Math.min(dpr, maxW / w);
+    canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
+    if (BITMAPS) { cropKey = canvas.width + 'x' + canvas.height; bmps.forEach(function (b) { b && b.close && b.close(); }); bmps = []; loaded.forEach(function (ok, k) { if (ok) makeBitmap(k); }); }
+    current = -1; paint(wanted);
+  }
+  function nearest(k) {
+    if (loaded[k]) return k;
+    for (var d = 1; d < COUNT; d++) { if (k - d >= 0 && loaded[k - d]) return k - d; if (k + d < COUNT && loaded[k + d]) return k + d; }
     return -1;
   }
-  function draw(i, force) {
-    wanted = i;
-    var k = nearest(i);
-    if (k < 0 || (k === current && !force)) return;
-    current = k;
-    var im = imgs[k], cw = canvas.width, ch = canvas.height, s = Math.max(cw / im.naturalWidth, ch / im.naturalHeight) * 1.04;
-    var w = im.naturalWidth * s, h = im.naturalHeight * s, par = FINE && !RM;
-    ctx.drawImage(im, (cw - w) / 2 + (par ? -mouse.nx * cw * .012 : 0), (ch - h) / 2 + (par ? -mouse.ny * ch * .01 : 0), w, h);
+  function paint(k) {
+    wanted = k;
+    var n = nearest(k);
+    if (n < 0 || n === current) return;
+    current = n;
+    if (bmps[n]) { ctx.drawImage(bmps[n], 0, 0, canvas.width, canvas.height); return; }
+    var im = imgs[n], cw = canvas.width, ch = canvas.height, s = Math.max(cw / im.naturalWidth, ch / im.naturalHeight);
+    var w = im.naturalWidth * s, h = im.naturalHeight * s;
+    ctx.drawImage(im, (cw - w) / 2, (ch - h) / 2, w, h);
   }
-  function load(i) {
+  function load(k) {
     return new Promise(function (res) {
       var im = new Image(); im.decoding = 'async';
-      im.onload = function () { imgs[i] = im; loaded[i] = true; if (current < 0 || Math.abs(i - wanted) < 3) draw(wanted, true); res(); };
+      im.onload = function () {
+        var done = function () { imgs[k] = im; loaded[k] = true; if (current < 0 || Math.abs(k - wanted) < 3) { current = -1; paint(wanted); } if (BITMAPS) makeBitmap(k).then(res); else res(); };
+        if (im.decode) im.decode().then(done, done); else done();
+      };
       im.onerror = function () { res(); };
-      im.src = 'assets/seq/f' + String(i).padStart(3, '0') + '.webp';
+      im.src = DIR + 'f' + String(Math.min(TOTAL - 1, k * STEP)).padStart(3, '0') + '.webp';
     });
   }
-  window.addEventListener('resize', sizeCanvas); sizeCanvas();
+  var rz = 0;
+  window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { sizeCanvas(false); }, 150); });
+  sizeCanvas(true);
 
   /* ---------------- Loader ---------------- */
   var visited = false;
@@ -805,19 +952,22 @@ h1 em, h2 em, h3 em { font-weight: 400; }
   var loader = $('loader');
   if (visited && loader) { loader.remove(); loader = null; } else document.body.classList.add('is-loading');
   var MSGS = ['Setting the table', 'Warming the tandoor', 'Lighting the lamps', 'Opening the doors'];
-  var order = [], seen = {};
-  for (var i = 0; i < FIRST; i++) { var f = Math.round(i * (FRAMES - 1) / (FIRST - 1)); if (!seen[f]) { seen[f] = 1; order.push(f); } }
+  var FIRST = SMALL ? 20 : 36, order = [], seen = {};
+  for (var i = 0; i < FIRST; i++) { var f = Math.round(i * (COUNT - 1) / (FIRST - 1)); if (!seen[f]) { seen[f] = 1; order.push(f); } }
   var done = 0, shown = 0, tick = null;
   if (loader) tick = setInterval(function () {
     shown += (done / order.length * 100 - shown) * .25;
     var p = Math.min(99, shown);
-    $('pct-num').textContent = Math.round(p); $('pct-bar').style.width = p + '%'; $('pct-msg').textContent = MSGS[Math.min(3, Math.floor(p / 25))];
+    $('pct-num').textContent = Math.round(p); $('pct-bar').style.transform = 'scaleX(' + p / 100 + ')'; $('pct-msg').textContent = MSGS[Math.min(3, Math.floor(p / 25))];
   }, 50);
+  $('pct-bar').style.width = '100%'; $('pct-bar').style.transformOrigin = '0 50%'; $('pct-bar').style.transform = 'scaleX(0)';
   var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
-  Promise.race([Promise.all(order.map(function (f) { return load(f).then(function () { done++; }); }).concat([fonts])), new Promise(function (r) { setTimeout(r, 12000); })])
+  Promise.race([Promise.all(order.map(function (f) { return load(f).then(function () { done++; }); }).concat([fonts])), new Promise(function (r) { setTimeout(r, 9000); })])
     .then(function () {
-      if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.width = '100%'; }
-      for (var j = 0; j < FRAMES; j++) if (!loaded[j]) (function (j) { setTimeout(function () { load(j); }, 10 + j * 8); })(j);
+      if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
+      // fetch the rest a few at a time so the network stays free for the photos
+      var rest = []; for (var j = 0; j < COUNT; j++) if (!loaded[j]) rest.push(j);
+      (function next() { var batch = rest.splice(0, 6); if (!batch.length) return; Promise.all(batch.map(load)).then(next); })();
       start();
     });
 
@@ -830,89 +980,142 @@ h1 em, h2 em, h3 em { font-weight: 400; }
     }
     document.body.classList.remove('is-loading');
     if (GS && !RM) {
+      gsap.fromTo(canvas, { scale: 1.2 }, { scale: 1.06, duration: 2.4, ease: 'expo.out', delay: t });
       gsap.from('#beat-1 .wi', { yPercent: 115, duration: 1.4, ease: 'expo.out', stagger: .06, delay: t + .1 });
       gsap.from('#beat-1-side', { y: 30, opacity: 0, duration: 1.2, ease: 'expo.out', delay: t + .35 });
     }
 
     // Walk-in: the page stays here until the last frame
-    var walk = $('walk'), b1 = $('beat-1'), b2 = $('beat-2'), b3 = $('beat-3');
+    var walk = $('walk'), b1 = $('beat-1'), b2 = $('beat-2'), b3 = $('beat-3'), dim = $('walk-dim');
+    var bar = $('walk-bar'), frameNo = $('walk-frame'), dive = $('dive');
+    bar.style.width = '100%'; bar.style.transformOrigin = '0 50%';
     function beat(el, p, a, b, centre) {
       var o = clamp((p - a) / .06, 0, 1) * clamp((b - p) / .06, 0, 1), sh = (1 - o) * 34 * (p < a + .06 ? 1 : -1);
-      el.style.opacity = o; el.style.transform = centre ? 'translateY(calc(-50% + ' + sh + 'px))' : 'translateY(' + sh + 'px)';
+      el.style.opacity = o; el.style.transform = centre ? 'translateY(calc(-50% + ' + sh + 'px))' : 'translate3d(0,' + sh + 'px,0)';
       el.classList.toggle('is-on', o > .5);
     }
+    var lastP = -1;
     function walkUpdate(p) {
-      var f = Math.min(FRAMES - 1, Math.floor(p * FRAMES));
-      draw(f); $('walk-bar').style.width = (p * 100) + '%'; $('walk-frame').textContent = String(f + 1).padStart(3, '0');
+      if (Math.abs(p - lastP) < .0005) return; lastP = p;
+      var k = Math.min(COUNT - 1, Math.floor(p * COUNT));
+      paint(k);
+      bar.style.transform = 'scaleX(' + p + ')';
+      frameNo.textContent = String(Math.min(TOTAL, k * STEP + 1)).padStart(3, '0');
       b1.style.opacity = clamp(1 - (p - .1) / .06, 0, 1); b1.classList.toggle('is-on', p < .13);
       beat(b2, p, .28, .56, true); beat(b3, p, .68, .98, false);
-      $('dive').style.opacity = p > .9 ? 0 : 1;
+      dive.style.opacity = p > .9 ? 0 : 1;
+      dim.style.opacity = clamp((p - .9) / .1, 0, 1) * .45;
     }
     if (GS) ScrollTrigger.create({ trigger: walk, start: 'top top', end: 'bottom bottom', scrub: true, onUpdate: function (s) { walkUpdate(s.progress); } });
     else window.addEventListener('scroll', function () { var r = walk.getBoundingClientRect(); walkUpdate(clamp(-r.top / (walk.offsetHeight - innerHeight), 0, 1)); }, { passive: true });
-    if (FINE && !RM) (function loop() { if (walk.getBoundingClientRect().bottom > 0 && current >= 0) draw(wanted, true); requestAnimationFrame(loop); })();
+
+    // gentle drift of the whole frame with the cursor (GPU transform, no repaint)
+    if (FINE && !RM && !LITE) {
+      var dx = 0, dy = 0;
+      whileVisible(walk, function () {
+        var tx = -mouse.nx * 14, ty = -mouse.ny * 10;
+        if (Math.abs(tx - dx) + Math.abs(ty - dy) < .05) return;
+        dx += (tx - dx) * .06; dy += (ty - dy) * .06;
+        canvas.style.translate = dx.toFixed(2) + 'px ' + dy.toFixed(2) + 'px';
+      });
+    }
 
     if (!GS) return;
 
+    // Story slides up over the walk-in, corners flattening as it arrives
+    if (!RM && !SMALL && !LITE) {
+      var r0 = 56;
+      gsap.fromTo('#story', { borderTopLeftRadius: r0, borderTopRightRadius: r0 }, { borderTopLeftRadius: 0, borderTopRightRadius: 0, ease: 'none',
+        scrollTrigger: { trigger: '#story', start: 'top bottom', end: 'top top', scrub: true } });
+    }
+
     // Food: vertical scroll moves the plates sideways until the last one
     if (!MOBILE) {
-      var sec = $('food'), track = $('track');
+      var sec = $('food'), track = $('track'), dishNo = $('dish-no'), dishBar = $('dish-bar');
+      dishBar.style.width = '100%'; dishBar.style.transformOrigin = '0 50%';
       var dist = function () { return Math.max(0, track.scrollWidth - innerWidth + 40); };
       var setH = function () { sec.style.height = 'calc(100vh + ' + dist() + 'px)'; };
       setH();
-      gsap.to(track, { x: function () { return -dist(); }, ease: 'none', scrollTrigger: {
+      var plates = gsap.utils.toArray('.hscroll__track .plate');
+      var tilt = RM ? null : gsap.quickTo(plates, 'skewX', { duration: .5, ease: 'power3' }), rest = 0;
+      gsap.to(track, { x: function () { return -dist(); }, ease: 'none', force3D: true, scrollTrigger: {
         trigger: sec, start: 'top top', end: function () { return '+=' + dist(); }, scrub: RM ? true : .6, invalidateOnRefresh: true, onRefresh: setH,
-        onUpdate: function (s) { $('dish-no').textContent = String(Math.min(9, 1 + Math.floor(s.progress * 9))).padStart(2, '0'); $('dish-bar').style.width = (s.progress * 100) + '%'; } } });
-      if (!RM) {
-        var rest = 0, tilt = gsap.quickTo('.hscroll__track .plate__img', 'skewX', { duration: .5, ease: 'power3' });
-        ScrollTrigger.create({ trigger: sec, start: 'top top', end: function () { return '+=' + dist(); },
-          onUpdate: function (s) { tilt(clamp(s.getVelocity() / -400, -6, 6)); clearTimeout(rest); rest = setTimeout(function () { tilt(0); }, 140); } });
-      }
+        onUpdate: function (s) {
+          dishNo.textContent = String(Math.min(9, 1 + Math.floor(s.progress * 9))).padStart(2, '0');
+          dishBar.style.transform = 'scaleX(' + s.progress + ')';
+          if (tilt) { tilt(clamp(s.getVelocity() / -500, -5, 5)); clearTimeout(rest); rest = setTimeout(function () { tilt(0); }, 140); }
+        } } });
     }
 
-    if (!RM) {
-      gsap.utils.toArray('[data-reveal]').forEach(function (el) { gsap.from(el, { y: 50, opacity: 0, duration: 1.2, ease: 'expo.out', delay: +(el.dataset.delay || 0), scrollTrigger: { trigger: el, start: 'top 90%' } }); });
-      gsap.utils.toArray('[data-clip]').forEach(function (el) {
-        gsap.fromTo(el, { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.5, ease: 'expo.inOut', scrollTrigger: { trigger: el, start: 'top 85%' } });
-        var img = el.querySelector('img');
-        if (img) gsap.fromTo(img, { scale: 1.35 }, { scale: 1, duration: 1.8, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 85%' } });
+    if (RM) { ScrollTrigger.refresh(); return; }
+
+    gsap.utils.toArray('[data-reveal]').forEach(function (el) { gsap.from(el, { y: 50, opacity: 0, duration: 1.2, ease: 'expo.out', delay: +(el.dataset.delay || 0), scrollTrigger: { trigger: el, start: 'top 90%' } }); });
+    gsap.utils.toArray('[data-clip]').forEach(function (el) {
+      gsap.fromTo(el, { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.5, ease: 'expo.inOut', scrollTrigger: { trigger: el, start: 'top 85%' } });
+      var img = el.querySelector('img');
+      if (img) gsap.fromTo(img, { scale: 1.35 }, { scale: 1, duration: 1.8, ease: 'expo.out', scrollTrigger: { trigger: el, start: 'top 85%' } });
+    });
+    if (!SMALL) gsap.utils.toArray('[data-parallax]').forEach(function (el) { var d = +el.dataset.parallax; gsap.fromTo(el, { y: d * 100 }, { y: -d * 100, ease: 'none', force3D: true, scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: true } }); });
+
+    // Story layers: drift with the cursor and spread with the scroll, only while on screen
+    var layers = document.querySelectorAll('#layers .layer'), lp = 0, lx = 0, ly = 0;
+    ScrollTrigger.create({ trigger: '#layers', start: 'top bottom', end: 'bottom top', scrub: true, onUpdate: function (s) { lp = s.progress; } });
+    whileVisible($('layers'), function () {
+      var tx = FINE && !LITE ? mouse.nx : 0, ty = FINE && !LITE ? mouse.ny : 0;
+      lx += (tx - lx) * .08; ly += (ty - ly) * .08;
+      layers.forEach(function (l) {
+        var d = +l.dataset.depth;
+        l.style.transform = 'translate3d(' + (lx * d * .4).toFixed(2) + 'px,' + (ly * d * .3 + (lp - .5) * d * (MOBILE ? -1.2 : -2.4)).toFixed(2) + 'px,0) rotate(' + ((lp - .5) * d * .09).toFixed(2) + 'deg)';
       });
-      gsap.utils.toArray('[data-parallax]').forEach(function (el) { var d = +el.dataset.parallax; gsap.fromTo(el, { y: d * 100 }, { y: -d * 100, ease: 'none', scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: true } }); });
+    });
 
-      // Story: layers drift with the cursor and spread with the scroll
-      var layers = document.querySelectorAll('#layers .layer'), lp = 0;
-      ScrollTrigger.create({ trigger: '#layers', start: 'top bottom', end: 'bottom top', scrub: true, onUpdate: function (s) { lp = s.progress; } });
-      gsap.ticker.add(function () {
-        layers.forEach(function (l) {
-          var d = +l.dataset.depth;
-          l.style.transform = 'translate3d(' + (mouse.nx * d * .4) + 'px,' + (mouse.ny * d * .3 + (lp - .5) * d * -2.4) + 'px,0) rotate(' + ((lp - .5) * d * .09) + 'deg)';
-        });
+    // Marquee: speeds up with scrolling and follows its direction
+    (function () {
+      var track = $('marquee'), x = 0, vel = 0, dir = 1, half = 0, skew = gsap.quickTo(track, 'skewX', { duration: .4, ease: 'power3' });
+      var measure = function () { half = track.scrollWidth / 2; };
+      measure(); window.addEventListener('resize', measure);
+      ScrollTrigger.create({ trigger: track, start: 'top bottom', end: 'bottom top', onUpdate: function (s) { var v = s.getVelocity(); vel = clamp(Math.abs(v) / 40, 0, 30); dir = v < 0 ? -1 : 1; if (!LITE) skew(clamp(v / -300, -8, 8)); } });
+      var lastT = performance.now();
+      whileVisible(track, function () {
+        var now = performance.now(), dt = Math.min(50, now - lastT) / 16.67; lastT = now;
+        x -= (1 + vel) * dir * dt; vel *= .92;
+        if (!half) measure();
+        if (x <= -half) x += half; if (x > 0) x -= half;
+        track.style.transform = 'translate3d(' + x.toFixed(1) + 'px,0,0)';
       });
+    })();
 
-      // Atmosphere band parallax
-      gsap.fromTo('#band-img', { yPercent: -8 }, { yPercent: 8, ease: 'none', scrollTrigger: { trigger: '#atmosphere', start: 'top bottom', end: 'bottom top', scrub: true } });
+    // Atmosphere band parallax + title zoom
+    gsap.fromTo('#band-img', { yPercent: -8 }, { yPercent: 8, ease: 'none', force3D: true, scrollTrigger: { trigger: '#atmosphere', start: 'top bottom', end: 'bottom top', scrub: true } });
+    if (!SMALL) gsap.fromTo('#band-img img', { scale: 1.18 }, { scale: 1, ease: 'none', scrollTrigger: { trigger: '#atmosphere', start: 'top bottom', end: 'center center', scrub: true } });
 
-      // Gallery prints drift at their own speed
-      if (!MOBILE) document.querySelectorAll('#float .print').forEach(function (p) {
-        var d = +p.dataset.drift, r = +p.dataset.rot;
-        gsap.fromTo(p, { y: d * 260, rotate: r - d * 2 }, { y: -d * 260, rotate: r + d * 2, ease: 'none', scrollTrigger: { trigger: '#float', start: 'top bottom', end: 'bottom top', scrub: true } });
-        gsap.from(p.querySelector('img'), { scale: 1.4, duration: 1.6, ease: 'expo.out', scrollTrigger: { trigger: p, start: 'top 95%' } });
-      });
+    // Gallery prints: fly in rotated, then drift at their own speed
+    if (!MOBILE) document.querySelectorAll('#float .print').forEach(function (p) {
+      var d = +p.dataset.drift, r = +p.dataset.rot;
+      gsap.fromTo(p, { y: d * 260, rotate: r - d * 2 }, { y: -d * 260, rotate: r + d * 2, ease: 'none', force3D: true, scrollTrigger: { trigger: '#float', start: 'top bottom', end: 'bottom top', scrub: true } });
+      gsap.from(p.querySelector('img'), { scale: 1.4, duration: 1.6, ease: 'expo.out', scrollTrigger: { trigger: p, start: 'top 95%' } });
+    });
+    else document.querySelectorAll('#float .print').forEach(function (p, i) {
+      gsap.from(p, { y: 60, rotate: i % 2 ? 6 : -6, opacity: 0, duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: p, start: 'top 92%' } });
+    });
 
-      // Rating and reviews count up
-      var o1 = { v: 0 }, o2 = { v: 0 };
-      gsap.to(o1, { v: 4.6, duration: 1.8, ease: 'expo.out', scrollTrigger: { trigger: '#rating', start: 'top 85%' }, onUpdate: function () { $('rating').textContent = o1.v.toFixed(1); } });
-      gsap.to(o2, { v: 5078, duration: 2, ease: 'expo.out', scrollTrigger: { trigger: '#reviews', start: 'top 92%' }, onUpdate: function () { $('reviews').textContent = Math.round(o2.v).toLocaleString('en-IN'); } });
+    // Rating and reviews count up
+    var o1 = { v: 0 }, o2 = { v: 0 };
+    gsap.to(o1, { v: 4.6, duration: 1.8, ease: 'expo.out', scrollTrigger: { trigger: '#rating', start: 'top 85%' }, onUpdate: function () { $('rating').textContent = o1.v.toFixed(1); } });
+    gsap.to(o2, { v: 5078, duration: 2, ease: 'expo.out', scrollTrigger: { trigger: '#reviews', start: 'top 92%' }, onUpdate: function () { $('reviews').textContent = Math.round(o2.v).toLocaleString('en-IN'); } });
 
-      // Finale: statement pulls away, paper rises
-      ScrollTrigger.create({ trigger: '#finale', start: 'top top', end: 'bottom bottom', scrub: true, onUpdate: function (s) {
-        var p = s.progress;
-        $('finale-st').style.transform = 'scale(' + (1.18 - p * .35) + ')';
-        $('finale-st').style.opacity = clamp(1.4 - p * 1.3, 0, 1);
-        $('finale-paper').style.opacity = clamp(p * 1.6 - .3, 0, 1);
-      } });
-      gsap.from('#footer-word', { yPercent: 60, opacity: 0, ease: 'none', scrollTrigger: { trigger: '#footer-word', start: 'top bottom', end: 'bottom bottom', scrub: true } });
-    }
+    // Finale: statement pulls away, paper rises
+    var st = $('finale-st'), pp = $('finale-paper');
+    ScrollTrigger.create({ trigger: '#finale', start: 'top top', end: 'bottom bottom', scrub: true, onUpdate: function (s) {
+      var p = s.progress;
+      st.style.transform = 'scale(' + (1.18 - p * .35).toFixed(3) + ')';
+      st.style.opacity = clamp(1.4 - p * 1.3, 0, 1);
+      pp.style.opacity = clamp(p * 1.6 - .3, 0, 1);
+    } });
+
+    // Footer wordmark rises letter by letter
+    gsap.from('#footer-word .ch', { yPercent: 100, opacity: 0, duration: 1.2, ease: 'expo.out', stagger: .05, scrollTrigger: { trigger: '#footer-word', start: 'top 95%' } });
+
     ScrollTrigger.refresh();
   }
 })();

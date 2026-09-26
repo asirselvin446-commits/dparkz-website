@@ -1,12 +1,16 @@
 # D'PARKZ — official website
 
 One page, one file: `index.html` holds all the content, styling and behaviour.
-The only other files are images:
+Everything else is media, fonts and the animation libraries, all served from this site (no third-party CDNs):
 
 ```
 index.html
-assets/img/   dish photos, room photos, storefront
-assets/seq/   150 frames for the walk-in (f000.webp … f149.webp)
+assets/img/     photos as WebP, each with a -sm phone size (storefront.jpg is the link preview)
+assets/seq/     150 walk-in frames, 1280px, for laptops and desktops
+assets/seq-sm/  the same frames at 720px for phones and tablets (phones load every second one)
+assets/vendor/  GSAP 3.12.5, ScrollTrigger, Lenis 1.1.13 (self-hosted, no CDN)
+assets/fonts/   Playfair Display and Manrope (self-hosted)
+vercel.json     long-term caching for everything in assets/
 ```
 
 ## Sections
