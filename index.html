@@ -898,6 +898,9 @@ img { height: auto; }
      Frames are downloaded as compressed files and decoded off the main thread (createImageBitmap on the file),
      only for the few frames around the current position, cropped to the screen shape. Scrolling never waits
      on a decode: if a frame isn't ready yet, the last ready one stays on screen.
+     Two tiers on computers: a light 480px copy of EVERY frame is always decoded, so a fast flick never
+     runs out of frames; full-quality frames are decoded around where you are and replace it instantly.
+     Phones keep every (720px) frame decoded, which is small enough to hold them all.
      Scroll sets a target and the frame catches up within a few screen refreshes, stepping through every frame
      on the way (one crisp frame at a time, no blending). */
   var COUNT = 150, ONLY_EVEN = SMALL || LITE, DIR = window.DP_WALK || 'assets/walk/v3/md/';
@@ -907,14 +910,52 @@ img { height: auto; }
   var target = 0, shown = 0, lastKey = '';
   var WIN_BACK = 1, WIN_AHEAD = SMALL ? 10 : 5;
   var BG = !!window.createImageBitmap;
-  function crop() {
+  function cropOf(W, H) {
     var c = canvas.width / canvas.height;
-    if (FW / FH > c) { var sw = FH * c; return [(FW - sw) / 2, 0, sw, FH]; }
-    var sh = FW / c; return [0, (FH - sh) / 2, FW, sh];
+    if (W / H > c) { var sw = H * c; return [(W - sw) / 2, 0, sw, H]; }
+    var sh = W / c; return [0, (H - sh) / 2, W, sh];
+  }
+  function crop() { return cropOf(FW, FH); }
+
+  // light tier: every frame, 480px, always decoded (computers only)
+  var TWO_TIER = !SMALL && BG, LOW_DIR = 'assets/walk/v3/sm/', LW = 720, LH = 405;
+  var lowFiles = [], lowBmps = {}, lowPend = {}, lowActive = 0, lowQueue = [];
+  function makeLow(k) {
+    if (!lowFiles[k] || lowPend[k]) return;
+    var cr = cropOf(LW, LH), key = cropKey, rw = Math.min(480, Math.round(cr[2] * 1.5)), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
+    lowPend[k] = true;
+    createImageBitmap(lowFiles[k], Math.round(cr[0]), Math.round(cr[1]), Math.round(cr[2]), Math.round(cr[3]), { resizeWidth: rw, resizeHeight: rh, resizeQuality: 'medium' })
+      .then(function (bm) {
+        if (key !== cropKey) { if (bm.close) bm.close(); return; }
+        if (lowBmps[k] && lowBmps[k].close) lowBmps[k].close();
+        lowBmps[k] = bm;
+        if (Math.abs(k - shown) < 2 && !bmps[Math.round(shown)]) repaint();
+      }, function () {})
+      .then(function () { lowPend[k] = false; });
+  }
+  // light copies are fetched and decoded one by one, only when the browser is idle, so they never compete with scrolling
+  var idle = window.requestIdleCallback || function (fn) { return setTimeout(function () { fn({ timeRemaining: function () { return 8; } }); }, 60); };
+  function pumpLow() {
+    if (lowActive || !lowQueue.length) return;
+    lowActive = 1;
+    idle(function () {
+      var k = lowQueue.shift();
+      fetch(LOW_DIR + 'f' + String(k).padStart(3, '0') + '.webp')
+        .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+        .then(function (b) { lowFiles[k] = b; makeLow(k); }, function () {})
+        .then(function () { lowActive = 0; pumpLow(); });
+    }, { timeout: 400 });
+  }
+  function startLowTier() {
+    if (!TWO_TIER || lowQueue.length || lowFiles.length) return;
+    // nearest to the current position first, then outward
+    var a = Math.round(shown);
+    for (var d = 0; d < COUNT; d++) { if (a + d < COUNT) lowQueue.push(a + d); if (d && a - d >= 0) lowQueue.push(a - d); }
+    pumpLow();
   }
   function dropBitmap(k) { if (bmps[k]) { if (bmps[k].close) bmps[k].close(); delete bmps[k]; } }
   // frames kept decoded: the opening frames always, plus a window that leads in the scroll direction
-  var dirn = 1, KEEP = 6;
+  var dirn = 1, KEEP = SMALL ? COUNT : 6;
   function inWindow(k) {
     if (k < KEEP) return true;
     var a = Math.round(shown), lo = dirn > 0 ? a - WIN_BACK : a - WIN_AHEAD - 1, hi = dirn > 0 ? a + WIN_AHEAD + 1 : a + WIN_BACK;
@@ -953,30 +994,34 @@ img { height: auto; }
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     cropKey = canvas.width + 'x' + canvas.height;
     Object.keys(bmps).forEach(function (k) { dropBitmap(+k); });
+    if (TWO_TIER) lowFiles.forEach(function (f, k) { if (f) makeLow(k); });
     lastKey = ''; warm();
   }
-  // nearest frame that is decoded and ready to draw
-  function nearestReady(k) {
-    if (bmps[k]) return k;
-    for (var d = 1; d < 12; d++) { if (bmps[k - d]) return k - d; if (bmps[k + d]) return k + d; }
-    return -1;
+  // what to draw for frame k: full quality if decoded, else the light copy, else the nearest of either
+  function pick(k) {
+    if (bmps[k]) return ['H', k];
+    if (lowBmps[k]) return ['L', k];
+    for (var d = 1; d < COUNT; d++) {
+      if (bmps[k - d]) return ['H', k - d]; if (bmps[k + d]) return ['H', k + d];
+      if (lowBmps[k - d]) return ['L', k - d]; if (lowBmps[k + d]) return ['L', k + d];
+    }
+    return null;
   }
-  function drawFrame(k, alpha) {
-    ctx.globalAlpha = alpha;
-    var bm = bmps[k];
-    if (bm.width === canvas.width || !bm.naturalWidth) ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
+  function drawFrame(bm) {
+    if (!bm.naturalWidth) ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);   // already cropped bitmap
     else { var cr = crop(); ctx.drawImage(bm, cr[0], cr[1], cr[2], cr[3], 0, 0, canvas.width, canvas.height); }
-    ctx.globalAlpha = 1;
   }
   function repaint() { lastKey = ''; paint(shown); }
   // one crisp frame at a time, no blending
   function paint(pos) {
-    var k = nearestReady(Math.round(pos));
-    if (k < 0) return;                         // nothing decoded yet: keep what is on screen
-    var key = String(k);
+    var p = pick(Math.round(pos));
+    if (!p) return;                            // nothing decoded yet: keep what is on screen
+    var key = p[0] + p[1];
     if (key === lastKey) return;
     lastKey = key;
-    drawFrame(k, 1);
+    // full quality gets the best scaling; the light copy is only seen in motion, so cheaper scaling is fine
+    ctx.imageSmoothingQuality = p[0] === 'H' ? 'high' : 'low';
+    drawFrame(p[0] === 'H' ? bmps[p[1]] : lowBmps[p[1]]);
   }
   function load(k) {
     return fetch(DIR + 'f' + String(k).padStart(3, '0') + '.webp')
@@ -984,14 +1029,17 @@ img { height: auto; }
       .then(function (blob) { files[k] = blob; loaded[k] = true; if (inWindow(k)) makeBitmap(k); }, function () {});
   }
   // ease the shown position toward the scroll position (only while the walk-in is on screen)
-  var walkEl = $('walk'), walkOn = true, lastWarm = -1;
+  var walkEl = $('walk'), walkOn = true, lastWarm = -1, wasFast = false;
   new IntersectionObserver(function (e) { walkOn = e[0].isIntersecting; }).observe(walkEl);
   (function tickWalk() {
     if (walkOn) {
       var d = target - shown;
       if (d > .01 && dirn < 0) { dirn = 1; warm(); } else if (d < -.01 && dirn > 0) { dirn = -1; warm(); }
       if (Math.abs(d) > .01) { shown += d * .35; if (Math.abs(target - shown) < .5) shown = target; paint(shown); }
-      if (Math.round(shown) !== lastWarm) { lastWarm = Math.round(shown); warm(); }
+      // while flicking fast the light copies carry the motion; full quality is decoded once it slows down
+      var fast = TWO_TIER && Math.abs(target - shown) > 2;
+      if (!fast && (Math.round(shown) !== lastWarm || wasFast)) { lastWarm = Math.round(shown); warm(); }
+      wasFast = fast;
     }
     requestAnimationFrame(tickWalk);
   })();
@@ -999,7 +1047,7 @@ img { height: auto; }
   window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { sizeCanvas(false); }, 150); });
   sizeCanvas(true);
   // read-only status for testing: which frame is drawn vs where the scroll is
-  window.DP_walkState = function () { return { drawn: +lastKey, target: Math.round(target), ready: Object.keys(bmps).length }; };
+  window.DP_walkState = function () { return { drawn: +lastKey.slice(1), tier: lastKey.charAt(0), target: Math.round(target), full: Object.keys(bmps).length, light: Object.keys(lowBmps).length }; };
 
   /* ---------------- Loader ---------------- */
   var visited = false;
@@ -1037,6 +1085,7 @@ img { height: auto; }
     .then(function () {
       if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
       var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) if (!loaded[j]) rest.push(j);
+      startLowTier();
       loadList(rest, 3);
       start();
     });
