@@ -960,7 +960,7 @@ img { height: auto; }
     var p = Math.min(99, shown);
     $('pct-num').textContent = Math.round(p); $('pct-bar').style.transform = 'scaleX(' + p / 100 + ')'; $('pct-msg').textContent = MSGS[Math.min(3, Math.floor(p / 25))];
   }, 50);
-  $('pct-bar').style.width = '100%'; $('pct-bar').style.transformOrigin = '0 50%'; $('pct-bar').style.transform = 'scaleX(0)';
+  if (loader) { $('pct-bar').style.width = '100%'; $('pct-bar').style.transformOrigin = '0 50%'; $('pct-bar').style.transform = 'scaleX(0)'; }
   var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
   Promise.race([Promise.all(order.map(function (f) { return load(f).then(function () { done++; }); }).concat([fonts])), new Promise(function (r) { setTimeout(r, 9000); })])
     .then(function () {
