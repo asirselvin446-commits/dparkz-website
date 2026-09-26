@@ -368,7 +368,7 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 
 /* ===================== Performance + motion upgrades ===================== */
 .walk { height: 560vh; height: 560svh; }
-.walk__canvas { transform: scale(1.06); will-change: transform; transform-origin: 50% 50%; }
+.walk__canvas { transform: scale(1.03); will-change: transform; transform-origin: 50% 50%; }
 .walk__dim { position: absolute; inset: 0; background: var(--night); opacity: 0; pointer-events: none; }
 #story { border-radius: 56px 56px 0 0; margin-top: -1px; z-index: 2; }
 .grain { will-change: transform; }
@@ -884,11 +884,15 @@ img { height: auto; }
   })();
 
   /* ---------------- Walk-in frames ----------------
-     Small screens get 720px frames and every second frame (75 images, about 2 MB).
-     The canvas only repaints when the frame changes; the cursor drift is a CSS transform. */
-  var TOTAL = 150, STEP = (SMALL || LITE) ? 2 : 1, COUNT = Math.ceil(TOTAL / STEP);
-  var DIR = SMALL ? 'assets/seq-sm/' : 'assets/seq/';
-  var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false }), imgs = [], loaded = [], current = -1, wanted = 0;
+     Three frame sizes: 1920px for large or sharp screens, 1280px for laptops, 720px for phones.
+     Even frames load first; big screens then fill in the odd ones in the background.
+     Scroll sets a target position, the shown position eases toward it, and neighbouring
+     frames are cross-faded, so the walk stays smooth even between frames and wheel notches. */
+  var COUNT = 150, ONLY_EVEN = SMALL || LITE;
+  var need = window.innerWidth * Math.min(window.devicePixelRatio || 1, 1.5);
+  var DIR = SMALL ? 'assets/seq-sm/' : (need > 1700 && !LITE ? 'assets/seq-hd/' : 'assets/seq/');
+  var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false }), imgs = [], loaded = [];
+  var target = 0, shown = 0, lastKey = '';
   // phones keep each frame pre-decoded and pre-cropped to the screen shape, so scrolling never waits on a decode
   var BITMAPS = SMALL && !!window.createImageBitmap, bmps = [], cropKey = '';
   function cropFor(im) {
@@ -901,7 +905,7 @@ img { height: auto; }
     return createImageBitmap(im, Math.round(cr[0]), Math.round(cr[1]), Math.round(cr[2]), Math.round(cr[3])).then(function (bm) {
       if (key !== cropKey) { bm.close && bm.close(); return; }
       if (bmps[k] && bmps[k].close) bmps[k].close();
-      bmps[k] = bm; if (Math.abs(k - wanted) < 2) { current = -1; paint(wanted); }
+      bmps[k] = bm; if (Math.abs(k - shown) < 3) repaint();
     }, function () {});
   }
   var lastW = 0, lastH = 0;
@@ -910,38 +914,60 @@ img { height: auto; }
     // ignore small height changes (phone address bar)
     if (!force && w === lastW && Math.abs(h - lastH) < 120) return;
     lastW = w; lastH = h;
-    var dpr = Math.min(window.devicePixelRatio || 1, (LITE || SMALL) ? 1 : 1.5), maxW = SMALL ? 720 : 1920;
+    var dpr = Math.min(window.devicePixelRatio || 1, (LITE || SMALL) ? 1 : 1.5), maxW = SMALL ? 720 : 2560;
     var scale = Math.min(dpr, maxW / w);
     canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     if (BITMAPS) { cropKey = canvas.width + 'x' + canvas.height; bmps.forEach(function (b) { b && b.close && b.close(); }); bmps = []; loaded.forEach(function (ok, k) { if (ok) makeBitmap(k); }); }
-    current = -1; paint(wanted);
+    repaint();
   }
   function nearest(k) {
     if (loaded[k]) return k;
     for (var d = 1; d < COUNT; d++) { if (k - d >= 0 && loaded[k - d]) return k - d; if (k + d < COUNT && loaded[k + d]) return k + d; }
     return -1;
   }
-  function paint(k) {
-    wanted = k;
-    var n = nearest(k);
-    if (n < 0 || n === current) return;
-    current = n;
-    if (bmps[n]) { ctx.drawImage(bmps[n], 0, 0, canvas.width, canvas.height); return; }
-    var im = imgs[n], cw = canvas.width, ch = canvas.height, s = Math.max(cw / im.naturalWidth, ch / im.naturalHeight);
-    var w = im.naturalWidth * s, h = im.naturalHeight * s;
-    ctx.drawImage(im, (cw - w) / 2, (ch - h) / 2, w, h);
+  // next loaded frame after k (skips gaps while odd frames are still arriving)
+  function nextLoaded(k) { for (var j = k + 1; j < Math.min(COUNT, k + 3); j++) if (loaded[j]) return j; return -1; }
+  function drawFrame(k, alpha) {
+    ctx.globalAlpha = alpha;
+    if (bmps[k]) ctx.drawImage(bmps[k], 0, 0, canvas.width, canvas.height);
+    else {
+      var im = imgs[k], cw = canvas.width, ch = canvas.height, s = Math.max(cw / im.naturalWidth, ch / im.naturalHeight);
+      var w = im.naturalWidth * s, h = im.naturalHeight * s;
+      ctx.drawImage(im, (cw - w) / 2, (ch - h) / 2, w, h);
+    }
+    ctx.globalAlpha = 1;
+  }
+  function repaint() { lastKey = ''; paint(shown); }
+  function paint(pos) {
+    var a = Math.floor(pos), base = nearest(a);
+    if (base < 0) return;
+    var b = base <= pos ? nextLoaded(base) : -1, t = 0;
+    if (b > 0) t = clamp((pos - base) / (b - base), 0, 1);
+    t = Math.round(t * 24) / 24;           // 24 blend steps between frames are plenty
+    var key = base + ':' + (t > 0 ? b + ':' + t : '');
+    if (key === lastKey) return;
+    lastKey = key;
+    drawFrame(base, 1);
+    if (t > 0) drawFrame(b, t);
   }
   function load(k) {
     return new Promise(function (res) {
       var im = new Image(); im.decoding = 'async';
       im.onload = function () {
-        var done = function () { imgs[k] = im; loaded[k] = true; if (current < 0 || Math.abs(k - wanted) < 3) { current = -1; paint(wanted); } if (BITMAPS) makeBitmap(k).then(res); else res(); };
+        var done = function () { imgs[k] = im; loaded[k] = true; if (Math.abs(k - shown) < 3 || lastKey === '') repaint(); if (BITMAPS) makeBitmap(k).then(res); else res(); };
         if (im.decode) im.decode().then(done, done); else done();
       };
       im.onerror = function () { res(); };
-      im.src = DIR + 'f' + String(Math.min(TOTAL - 1, k * STEP)).padStart(3, '0') + '.webp';
+      im.src = DIR + 'f' + String(k).padStart(3, '0') + '.webp';
     });
   }
+  // ease the shown position toward the scroll position
+  (function tickWalk() {
+    var d = target - shown;
+    if (Math.abs(d) > .002) { shown += d * (RM ? .5 : .16); if (Math.abs(target - shown) < .002) shown = target; paint(shown); }
+    requestAnimationFrame(tickWalk);
+  })();
   var rz = 0;
   window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { sizeCanvas(false); }, 150); });
   sizeCanvas(true);
@@ -953,7 +979,7 @@ img { height: auto; }
   if (visited && loader) { loader.remove(); loader = null; } else document.body.classList.add('is-loading');
   var MSGS = ['Setting the table', 'Warming the tandoor', 'Lighting the lamps', 'Opening the doors'];
   var FIRST = SMALL ? 20 : 36, order = [], seen = {};
-  for (var i = 0; i < FIRST; i++) { var f = Math.round(i * (COUNT - 1) / (FIRST - 1)); if (!seen[f]) { seen[f] = 1; order.push(f); } }
+  for (var i = 0; i < FIRST; i++) { var f = Math.round(i * 74 / (FIRST - 1)) * 2; if (!seen[f]) { seen[f] = 1; order.push(f); } }
   var done = 0, shown = 0, tick = null;
   if (loader) tick = setInterval(function () {
     shown += (done / order.length * 100 - shown) * .25;
@@ -966,7 +992,7 @@ img { height: auto; }
     .then(function () {
       if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
       // fetch the rest a few at a time so the network stays free for the photos
-      var rest = []; for (var j = 0; j < COUNT; j++) if (!loaded[j]) rest.push(j);
+      var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) rest.push(j);
       (function next() { var batch = rest.splice(0, 6); if (!batch.length) return; Promise.all(batch.map(load)).then(next); })();
       start();
     });
@@ -980,7 +1006,7 @@ img { height: auto; }
     }
     document.body.classList.remove('is-loading');
     if (GS && !RM) {
-      gsap.fromTo(canvas, { scale: 1.2 }, { scale: 1.06, duration: 2.4, ease: 'expo.out', delay: t });
+      gsap.fromTo(canvas, { scale: 1.15 }, { scale: 1.03, duration: 2.4, ease: 'expo.out', delay: t });
       gsap.from('#beat-1 .wi', { yPercent: 115, duration: 1.4, ease: 'expo.out', stagger: .06, delay: t + .1 });
       gsap.from('#beat-1-side', { y: 30, opacity: 0, duration: 1.2, ease: 'expo.out', delay: t + .35 });
     }
@@ -997,10 +1023,9 @@ img { height: auto; }
     var lastP = -1;
     function walkUpdate(p) {
       if (Math.abs(p - lastP) < .0005) return; lastP = p;
-      var k = Math.min(COUNT - 1, Math.floor(p * COUNT));
-      paint(k);
+      target = p * (COUNT - 1);
       bar.style.transform = 'scaleX(' + p + ')';
-      frameNo.textContent = String(Math.min(TOTAL, k * STEP + 1)).padStart(3, '0');
+      frameNo.textContent = String(Math.round(target) + 1).padStart(3, '0');
       b1.style.opacity = clamp(1 - (p - .1) / .06, 0, 1); b1.classList.toggle('is-on', p < .13);
       beat(b2, p, .28, .56, true); beat(b3, p, .68, .98, false);
       dive.style.opacity = p > .9 ? 0 : 1;
