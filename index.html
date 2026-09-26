@@ -913,7 +913,13 @@ img { height: auto; }
     var sh = FW / c; return [0, (FH - sh) / 2, FW, sh];
   }
   function dropBitmap(k) { if (bmps[k]) { if (bmps[k].close) bmps[k].close(); delete bmps[k]; } }
-  function inWindow(k) { var a = Math.floor(shown); return k >= a - WIN_BACK && k <= a + WIN_AHEAD + 1; }
+  // frames kept decoded: the opening frames always, plus a window that leads in the scroll direction
+  var dirn = 1, KEEP = 6;
+  function inWindow(k) {
+    if (k < KEEP) return true;
+    var a = Math.round(shown), lo = dirn > 0 ? a - WIN_BACK : a - WIN_AHEAD - 1, hi = dirn > 0 ? a + WIN_AHEAD + 1 : a + WIN_BACK;
+    return k >= lo && k <= hi;
+  }
   function makeBitmap(k) {
     if (!loaded[k] || bmps[k] || pending[k] || inFlight >= 3 || k < 0 || k >= COUNT) return;
     var cr = crop(), key = cropKey, rw = Math.min(Math.round(cr[2]), canvas.width), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
@@ -930,9 +936,10 @@ img { height: auto; }
   }
   // keep decoded frames only around the current position; nearest first
   function warm() {
-    var a = Math.floor(shown);
+    var a = Math.round(shown);
     Object.keys(bmps).forEach(function (k) { if (!inWindow(+k)) dropBitmap(+k); });
-    for (var d = 0; d <= WIN_AHEAD; d++) { makeBitmap(a + d); if (d && d <= WIN_BACK) makeBitmap(a - d); }
+    for (var d = 0; d <= WIN_AHEAD; d++) { makeBitmap(a + d * dirn); if (d && d <= WIN_BACK) makeBitmap(a - d * dirn); }
+    for (var k = 0; k < KEEP; k++) makeBitmap(k);
   }
   var lastW = 0, lastH = 0;
   function sizeCanvas(force) {
@@ -982,14 +989,17 @@ img { height: auto; }
   (function tickWalk() {
     if (walkOn) {
       var d = target - shown;
+      if (d > .01 && dirn < 0) { dirn = 1; warm(); } else if (d < -.01 && dirn > 0) { dirn = -1; warm(); }
       if (Math.abs(d) > .01) { shown += d * .35; if (Math.abs(target - shown) < .5) shown = target; paint(shown); }
-      if (Math.floor(shown) !== lastWarm) { lastWarm = Math.floor(shown); warm(); }
+      if (Math.round(shown) !== lastWarm) { lastWarm = Math.round(shown); warm(); }
     }
     requestAnimationFrame(tickWalk);
   })();
   var rz = 0;
   window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { sizeCanvas(false); }, 150); });
   sizeCanvas(true);
+  // read-only status for testing: which frame is drawn vs where the scroll is
+  window.DP_walkState = function () { return { drawn: +lastKey, target: Math.round(target), ready: Object.keys(bmps).length }; };
 
   /* ---------------- Loader ---------------- */
   var visited = false;
