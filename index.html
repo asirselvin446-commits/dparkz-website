@@ -386,7 +386,7 @@ html.lb-open, html.lb-open body { overflow: hidden; }
 .finale { position: relative; height: 200vh; }
 .finale__pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 40%, var(--teal), var(--teal-dk) 55%, var(--teal-deep)); }
 .finale__st { text-align: center; display: flex; flex-direction: column; gap: 32px; align-items: center; padding-inline: var(--gutter); will-change: transform, opacity; }
-.finale__paper { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; opacity: 0; -webkit-mask-image: linear-gradient(180deg, transparent, #000 60%); mask-image: linear-gradient(180deg, transparent, #000 60%); }
+.finale__paper { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; opacity: 0; pointer-events: none; -webkit-mask-image: linear-gradient(180deg, transparent, #000 60%); mask-image: linear-gradient(180deg, transparent, #000 60%); }
 .footer { padding: 96px var(--gutter) calc(32px + env(safe-area-inset-bottom, 0px)); overflow: hidden; }
 .footer__grid { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 24px; margin-bottom: 64px; }
 .footer__col { grid-column: span 3; display: flex; flex-direction: column; gap: 12px; }
@@ -414,6 +414,14 @@ html.lb-open, html.lb-open body { overflow: hidden; }
 .btn__t > span + span { transform: translateY(110%); }
 .btn:hover .btn__t > span:first-child, .btn:focus-visible .btn__t > span:first-child { transform: translateY(-110%); }
 .btn:hover .btn__t > span + span, .btn:focus-visible .btn__t > span + span { transform: translateY(0); }
+
+/* Touch: no browser tap flash (Android draws a blue box over the whole card); a soft press instead */
+html { -webkit-tap-highlight-color: transparent; }
+@media (hover: none) {
+  .plate .plate__img, .print .print__img, .row { transition: opacity .25s, transform .25s var(--ease); }
+  .plate:active .plate__img, .print:active .print__img { opacity: .82; transform: scale(.98); }
+  .row:active { opacity: .7; }
+}
 
 /* Plates: 3D tilt under the cursor (mouse only; touch screens keep the plates flat) */
 @media (hover: hover) and (pointer: fine) {
@@ -649,7 +657,7 @@ img { height: auto; }
       <div class="finale__st" id="finale-st">
         <span class="label">D'PARKZ · Thakkamalpuram</span>
         <h2 class="display" style="line-height:1">Good food.<br><em>Good company.</em><br>Good memories.</h2>
-        <div class="btn-row" style="justify-content:center"><a class="btn btn--solid" href="tel:+919655911333" data-cur="VIEW" style="background:var(--paper-lt);border-color:var(--paper-lt);color:var(--teal-dk)">Call 096559 11333</a><a class="btn" href="#top" data-cur="VIEW">Back to top</a></div>
+        <div class="btn-row" style="justify-content:center"><a class="btn" href="#top" data-cur="VIEW">Back to top</a></div>
       </div>
       <div class="finale__paper s-paper tex" id="finale-paper"></div>
     </div>
