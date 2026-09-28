@@ -39,8 +39,13 @@
     var small = window.matchMedia && matchMedia('(max-width: 900px)').matches;
     var lite = document.documentElement.classList.contains('lite');
     var need = window.innerWidth * Math.min(window.devicePixelRatio || 1, 1.5);
-    var dir = 'assets/walk/v4/' + (small ? 'sm' : (need > 1700 && !lite ? 'hd' : 'md')) + '/';
+    var size = small ? 'sm' : (need > 1700 && !lite ? 'hd' : 'md');
+    var dir = 'assets/walk/v4/' + size + '/';
     window.DP_WALK = dir;
+    // computers also get the walk-in as an all-keyframe video: every frame decodes on the graphics chip in ~1 ms,
+    // so the walk-in stays full quality at any scroll speed once it has downloaded
+    var v = document.createElement('video');
+    window.DP_WALK_VIDEO = (!small && v.canPlayType && v.canPlayType('video/mp4; codecs="avc1.640028"')) ? 'assets/walk/v4/walk-' + size + '.mp4' : null;
     var l = document.createElement('link'); l.rel = 'preload'; l.as = 'fetch'; l.crossOrigin = 'anonymous'; l.href = dir + 'f000.webp'; l.setAttribute('fetchpriority', 'high');
     document.head.appendChild(l);
   })();
@@ -385,7 +390,6 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 
 /* ===================== Performance + motion upgrades ===================== */
 .walk { height: 560vh; height: 560svh; }
-.walk__canvas { transform: scale(1.03); will-change: transform; transform-origin: 50% 50%; }
 .walk__dim { position: absolute; inset: 0; background: var(--night); opacity: 0; pointer-events: none; }
 #story { border-radius: 56px 56px 0 0; margin-top: -1px; z-index: 2; }
 .grain { will-change: transform; }
@@ -917,7 +921,7 @@ img { height: auto; }
   var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false });
   var files = [], loaded = [], bmps = {}, pending = {}, inFlight = 0, cropKey = '';
   var target = 0, shown = 0, lastKey = '';
-  var WIN_BACK = 1, WIN_AHEAD = SMALL ? 10 : 5;
+  var WIN_BACK = 2, WIN_AHEAD = SMALL ? 10 : 8;
   var BG = !!window.createImageBitmap;
   function cropOf(W, H) {
     var c = canvas.width / canvas.height;
@@ -930,7 +934,7 @@ img { height: auto; }
   var TWO_TIER = !SMALL && BG, LOW_DIR = 'assets/walk/v4/sm/', LOW_COUNT = COUNT / 2, LW = 720, LH = 405;
   var lowFiles = [], lowBmps = {}, lowPend = {}, lowActive = 0, lowQueue = [];
   function makeLow(k) {
-    if (!lowFiles[k] || lowPend[k]) return;
+    if (!lowFiles[k] || lowPend[k] || vidReady) return;
     var cr = cropOf(LW, LH), key = cropKey, rw = Math.min(480, Math.round(cr[2] * 1.5)), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
     lowPend[k] = true;
     createImageBitmap(lowFiles[k], Math.round(cr[0]), Math.round(cr[1]), Math.round(cr[2]), Math.round(cr[3]), { resizeWidth: rw, resizeHeight: rh, resizeQuality: 'medium' })
@@ -955,7 +959,7 @@ img { height: auto; }
     }, { timeout: 200 });
   }
   function pumpLow() {
-    while (lowActive < 6 && lowQueue.length) {
+    while (lowActive < 6 && lowQueue.length && !vidReady) {
       var k = lowQueue.shift(); lowActive++;
       (function (k) {
         fetch(LOW_DIR + 'f' + String(k).padStart(3, '0') + '.webp')
@@ -976,13 +980,14 @@ img { height: auto; }
   function dropBitmap(k) { if (bmps[k]) { if (bmps[k].close) bmps[k].close(); delete bmps[k]; } }
   // frames kept decoded: the opening frames always, plus a window that leads in the scroll direction
   var dirn = 1, KEEP = SMALL ? COUNT : 6;
+  function lead() { return WIN_AHEAD; }
   function inWindow(k) {
     if (k < KEEP) return true;
-    var a = Math.round(shown), lo = dirn > 0 ? a - WIN_BACK : a - WIN_AHEAD - 1, hi = dirn > 0 ? a + WIN_AHEAD + 1 : a + WIN_BACK;
+    var A = lead(), a = Math.round(shown), lo = dirn > 0 ? a - WIN_BACK : a - A - 1, hi = dirn > 0 ? a + A + 1 : a + WIN_BACK;
     return k >= lo && k <= hi;
   }
   function makeBitmap(k) {
-    if (!loaded[k] || bmps[k] || pending[k] || inFlight >= 3 || k < 0 || k >= COUNT) return;
+    if (!loaded[k] || bmps[k] || pending[k] || inFlight >= 4 || k < 0 || k >= COUNT) return;
     var cr = crop(), key = cropKey, rw = Math.min(Math.round(cr[2]), canvas.width), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
     pending[k] = true; inFlight++;
     var job = BG
@@ -997,9 +1002,13 @@ img { height: auto; }
   }
   // keep decoded frames only around the current position; nearest first
   function warm() {
+    if (vidReady) return;                       // the video supplies every frame now
     var a = Math.round(shown);
     Object.keys(bmps).forEach(function (k) { if (!inWindow(+k)) dropBitmap(+k); });
-    for (var d = 0; d <= WIN_AHEAD; d++) { makeBitmap(a + d * dirn); if (d && d <= WIN_BACK) makeBitmap(a - d * dirn); }
+    for (var d = 0, A = lead(); d <= A; d++) {
+      if (VIDEO_SRC) { need(a + d * dirn); if (d && d <= WIN_BACK) need(a - d * dirn); }
+      makeBitmap(a + d * dirn); if (d && d <= WIN_BACK) makeBitmap(a - d * dirn);
+    }
     for (var k = 0; k < KEEP; k++) makeBitmap(k);
   }
   var lastW = 0, lastH = 0;
@@ -1013,13 +1022,22 @@ img { height: auto; }
     canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     cropKey = canvas.width + 'x' + canvas.height;
+    // keep as many full-quality frames ready as a fixed memory budget allows (about 32 at 1920px, 70 at 1280px),
+    // two thirds ahead in the scroll direction, so fast scrolling passes over frames that are already decoded
+    if (!SMALL) {
+      var cb = crop(), bw = Math.min(cb[2], canvas.width), per = bw * (bw * cb[3] / cb[2]) * 4;
+      var n = clamp(Math.floor((LITE ? 96e6 : 256e6) / per), 12, 80);
+      WIN_AHEAD = Math.ceil(n * .65); WIN_BACK = Math.floor(n * .35);
+    }
     Object.keys(bmps).forEach(function (k) { dropBitmap(+k); });
     if (TWO_TIER) lowFiles.forEach(function (f, k) { if (f) makeLow(k); });
     lastKey = ''; warm();
   }
-  // what to draw for frame k: full quality if decoded, else the light copy, else the nearest of either
+  // what to draw for frame k: full quality whenever a full-quality frame is within 3 frames;
+  // the light copy is only an emergency fallback so the picture never freezes
   function pick(k) {
     if (bmps[k]) return ['H', k];
+    for (var n = 1; n <= 3; n++) { if (bmps[k - n]) return ['H', k - n]; if (bmps[k + n]) return ['H', k + n]; }
     if (lowBmps[k]) return ['L', k];
     for (var d = 1; d < COUNT; d++) {
       if (bmps[k - d]) return ['H', k - d]; if (bmps[k + d]) return ['H', k + d];
@@ -1034,13 +1052,18 @@ img { height: auto; }
   function repaint() { lastKey = ''; paint(shown); }
   // one crisp frame at a time, no blending
   function paint(pos) {
+    if (vidReady) {                             // video mode: seek the all-keyframe video to this frame
+      var k = Math.round(pos);
+      if (k === vidShown && !vidSeeking) { if (lastKey === '') { vidDraw(); lastKey = 'V' + k; } return; }
+      vidSeek(k);
+      return;
+    }
     var p = pick(Math.round(pos));
     if (!p) return;                            // nothing decoded yet: keep what is on screen
     var key = p[0] + p[1];
     if (key === lastKey) return;
     lastKey = key;
-    // full quality gets the best scaling; the light copy is only seen in motion, so cheaper scaling is fine
-    ctx.imageSmoothingQuality = p[0] === 'H' ? 'high' : 'low';
+    ctx.imageSmoothingQuality = 'high';
     drawFrame(p[0] === 'H' ? bmps[p[1]] : lowBmps[p[1]]);
   }
   function load(k) {
@@ -1049,25 +1072,75 @@ img { height: auto; }
       .then(function (blob) { files[k] = blob; loaded[k] = true; if (inWindow(k)) makeBitmap(k); }, function () {});
   }
   // ease the shown position toward the scroll position (only while the walk-in is on screen)
-  var walkEl = $('walk'), walkOn = true, lastWarm = -1, wasFast = false;
+  var walkEl = $('walk'), walkOn = true, lastWarm = -1, STEP_MAX = 4;
   new IntersectionObserver(function (e) { walkOn = e[0].isIntersecting; }).observe(walkEl);
   (function tickWalk() {
     if (walkOn) {
       var d = target - shown;
       if (d > .01 && dirn < 0) { dirn = 1; warm(); } else if (d < -.01 && dirn > 0) { dirn = -1; warm(); }
-      if (Math.abs(d) > .01) { shown += d * .35; if (Math.abs(target - shown) < .5) shown = target; paint(shown); }
-      // while flicking fast the light copies carry the motion; full quality is decoded once it slows down
-      var fast = TWO_TIER && Math.abs(target - shown) > 2;
-      if (!fast && (Math.round(shown) !== lastWarm || wasFast)) { lastWarm = Math.round(shown); warm(); }
-      wasFast = fast;
+      // advance at most 4 frames per screen refresh, so full-quality frames are ready in time
+      if (Math.abs(d) > .01) { shown += clamp(d * .35, -(vidReady ? 24 : STEP_MAX), vidReady ? 24 : STEP_MAX); if (Math.abs(target - shown) < .5) shown = target; paint(shown); }
+      // keep full-quality frames decoding around (and ahead of) the current frame, also while scrolling
+      if (Math.round(shown) !== lastWarm) { lastWarm = Math.round(shown); warm(); }
     }
     requestAnimationFrame(tickWalk);
   })();
+  /* Video mode (computers). While the all-keyframe video downloads, full-quality image frames are fetched
+     only around the current position; once the whole video is buffered, every frame comes from it
+     (hardware decode, about 1 ms per frame), so the walk-in is sharp at any scroll speed. */
+  var VIDEO_SRC = window.DP_WALK_VIDEO || null, vid = null, vidReady = false, vidSeeking = false, vidWant = -1, vidCur = -1, vidShown = -1;
+  var fetching = {}, fetchActive = 0;
+  function need(k) {
+    if (k < 0 || k >= COUNT || loaded[k] || fetching[k] || fetchActive >= 3) return;
+    fetching[k] = true; fetchActive++;
+    load(k).then(function () { fetchActive--; warm(); });
+  }
+  function vidDraw() {
+    var cr = cropOf(vid.videoWidth, vid.videoHeight);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(vid, cr[0], cr[1], cr[2], cr[3], 0, 0, canvas.width, canvas.height);
+  }
+  function vidSeek(k) {
+    vidWant = k;
+    if (vidSeeking) return;
+    vidSeeking = true; vidCur = k;
+    vid.currentTime = (k + .5) / 24;
+  }
+  function vidCheck() {
+    // the whole file is already in memory (blob), so the video is ready as soon as it has decoded a frame
+    if (vidReady || !vid || !vid.src || !vid.duration || vid.readyState < 2) return;
+    {
+      vidReady = true;
+      Object.keys(bmps).forEach(function (k) { dropBitmap(+k); });              // free the image frames
+      Object.keys(lowBmps).forEach(function (k) { if (lowBmps[k].close) lowBmps[k].close(); delete lowBmps[k]; });
+      vidShown = -1; repaint();
+    }
+  }
+  function startVideo(fallback) {
+    if (!VIDEO_SRC || vid) return;
+    vid = document.createElement('video');
+    vid.muted = true; vid.playsInline = true; vid.preload = 'auto'; vid.setAttribute('aria-hidden', 'true');
+    vid.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+    vid.addEventListener('seeked', function () {
+      vidSeeking = false; vidDraw(); vidShown = vidCur; lastKey = 'V' + vidCur;
+      if (vidWant !== vidCur) vidSeek(vidWant);
+    });
+    ['progress', 'canplaythrough', 'loadeddata'].forEach(function (e) { vid.addEventListener(e, vidCheck); });
+    var failed = function () { clearInterval(poll); vid = null; VIDEO_SRC = null; vidReady = false; if (fallback) fallback(); };
+    var poll = setInterval(function () { if (vidReady) clearInterval(poll); else vidCheck(); }, 500);
+    vid.addEventListener('error', failed);
+    document.body.appendChild(vid);
+    // download the whole file first (browsers only buffer part of a video on their own), then play it from memory
+    fetch(VIDEO_SRC)
+      .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (b) { if (vid) vid.src = URL.createObjectURL(b); }, failed);
+  }
+
   var rz = 0;
   window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { sizeCanvas(false); }, 150); });
   sizeCanvas(true);
   // read-only status for testing: which frame is drawn vs where the scroll is
-  window.DP_walkState = function () { return { drawn: +lastKey.slice(1), tier: lastKey.charAt(0), target: Math.round(target), full: Object.keys(bmps).length, light: Object.keys(lowBmps).length }; };
+  window.DP_walkState = function () { return { drawn: +lastKey.slice(1), tier: lastKey.charAt(0), target: Math.round(target), full: Object.keys(bmps).length, light: Object.keys(lowBmps).length, video: vidReady }; };
 
   /* ---------------- Loader ---------------- */
   var visited = false;
@@ -1115,8 +1188,9 @@ img { height: auto; }
     .then(function () {
       if (tick) { clearInterval(tick); $('pct-num').textContent = '100'; $('pct-bar').style.transform = 'scaleX(1)'; }
       var rest = [], j; for (j = 0; j < COUNT; j += 2) if (!loaded[j]) rest.push(j); if (!ONLY_EVEN) for (j = 1; j < COUNT; j += 2) if (!loaded[j]) rest.push(j);
-      // then the remaining full-quality frames, a few at a time
-      loadList(rest, 3);
+      // computers: download the all-keyframe video; otherwise (phones, or if the video fails) the remaining frames
+      var loadRest = function () { loadList(rest.filter(function (k) { return !loaded[k]; }), 3); };
+      if (VIDEO_SRC) startVideo(loadRest); else loadRest();
       start();
     });
 
@@ -1129,7 +1203,7 @@ img { height: auto; }
     }
     document.body.classList.remove('is-loading');
     if (GS && !RM) {
-      gsap.fromTo(canvas, { scale: 1.15 }, { scale: 1.03, duration: 2.4, ease: 'expo.out', delay: t });
+      gsap.fromTo(canvas, { scale: 1.08 }, { scale: 1, duration: 2, ease: 'expo.out', delay: t, clearProps: 'transform' });
       gsap.from('#beat-1 .wi', { yPercent: 115, duration: 1.4, ease: 'expo.out', stagger: .06, delay: t + .1 });
       gsap.from('#beat-1-side', { y: 30, opacity: 0, duration: 1.2, ease: 'expo.out', delay: t + .35 });
     }
@@ -1147,7 +1221,6 @@ img { height: auto; }
     function walkUpdate(p) {
       if (Math.abs(p - lastP) < .0005) return; lastP = p;
       target = p * (COUNT - 1);
-      if (!RM) canvas.style.scale = (1 + p * .08).toFixed(4);
       bar.style.transform = 'scaleX(' + p + ')';
       frameNo.textContent = String(Math.round(target) + 1).padStart(3, '0');
       b1.style.opacity = clamp(1 - (p - .1) / .06, 0, 1); b1.classList.toggle('is-on', p < .13);
@@ -1157,17 +1230,6 @@ img { height: auto; }
     }
     if (GS) ScrollTrigger.create({ trigger: walk, start: 'top top', end: 'bottom bottom', scrub: true, onUpdate: function (s) { walkUpdate(s.progress); } });
     else window.addEventListener('scroll', function () { var r = walk.getBoundingClientRect(); walkUpdate(clamp(-r.top / (walk.offsetHeight - innerHeight), 0, 1)); }, { passive: true });
-
-    // gentle drift of the whole frame with the cursor (GPU transform, no repaint)
-    if (FINE && !RM && !LITE) {
-      var dx = 0, dy = 0;
-      whileVisible(walk, function () {
-        var tx = -mouse.nx * 14, ty = -mouse.ny * 10;
-        if (Math.abs(tx - dx) + Math.abs(ty - dy) < .05) return;
-        dx += (tx - dx) * .06; dy += (ty - dy) * .06;
-        canvas.style.translate = dx.toFixed(2) + 'px ' + dy.toFixed(2) + 'px';
-      });
-    }
 
     if (!GS) return;
 

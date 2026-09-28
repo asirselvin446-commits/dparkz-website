@@ -1,0 +1,1276 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* ===== Fonts ===== */
+      @font-face { font-family: 'Playfair Display'; font-style: normal; font-weight: 700; src: url(assets/fonts/playfair-display-latin-700-normal.woff2) format('woff2'); }
+      @font-face { font-family: 'Playfair Display'; font-style: italic; font-weight: 400; src: url(assets/fonts/playfair-display-latin-400-italic.woff2) format('woff2'); }
+      @font-face { font-family: 'Manrope'; font-style: normal; font-weight: 800; src: url(assets/fonts/manrope-latin-800-normal.woff2) format('woff2'); }
+      @font-face { font-family: 'Manrope'; font-style: normal; font-weight: 400; src: url(assets/fonts/manrope-latin-400-normal.woff2) format('woff2'); }
+
+      /* ===== Tokens ===== */
+      :root {
+        --night: #1B120B;
+        --night-card: #251B13;
+        --paper-lt: #F3E5C7;
+        --paper: #E8D5B0;
+        --teal: #3ED5CC;
+        --teal-glow: rgba(62, 213, 204, 0.4);
+        --orange: #FF9447;
+        --orange-bright: #FFA46A;
+        --orange-glow: rgba(255, 148, 71, 0.4);
+        --terra: #8A3816;
+        --brown-dk: #2E1E12;
+        --serif: 'Playfair Display', Georgia, serif;
+        --sans: 'Manrope', system-ui, sans-serif;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--night); }
+
+      #root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        background: var(--night);
+        overflow: hidden;
+        perspective: 1200px;
+      }
+
+      /* Global Ambient Motion Graphics Elements */
+      .ambient-glow-1 {
+        position: absolute;
+        width: 900px;
+        height: 900px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 148, 71, 0.16) 0%, rgba(27, 18, 11, 0) 70%);
+        top: -200px;
+        left: -200px;
+        filter: blur(80px);
+        pointer-events: none;
+        z-index: 1;
+      }
+      .ambient-glow-2 {
+        position: absolute;
+        width: 1000px;
+        height: 1000px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(62, 213, 204, 0.14) 0%, rgba(27, 18, 11, 0) 70%);
+        bottom: -300px;
+        right: -200px;
+        filter: blur(90px);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      /* Grid Lines */
+      .grid-lines {
+        position: absolute;
+        inset: 0;
+        background-image: 
+          linear-gradient(to right, rgba(243, 229, 199, 0.02) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(243, 229, 199, 0.02) 1px, transparent 1px);
+        background-size: 80px 80px;
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      /* Grain */
+      .grain {
+        position: absolute;
+        inset: -50%;
+        z-index: 99;
+        pointer-events: none;
+        opacity: 0.045;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      /* Corner HUD Crosshairs */
+      .hud-crosshair {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        pointer-events: none;
+        z-index: 80;
+        opacity: 0.35;
+      }
+      .hud-tl { top: 40px; left: 40px; border-top: 2px solid var(--paper-lt); border-left: 2px solid var(--paper-lt); }
+      .hud-tr { top: 40px; right: 40px; border-top: 2px solid var(--paper-lt); border-right: 2px solid var(--paper-lt); }
+      .hud-bl { bottom: 40px; left: 40px; border-bottom: 2px solid var(--paper-lt); border-left: 2px solid var(--paper-lt); }
+      .hud-br { bottom: 40px; right: 40px; border-bottom: 2px solid var(--paper-lt); border-right: 2px solid var(--paper-lt); }
+
+      /* Top Global Status Header */
+      .global-header {
+        position: absolute;
+        top: 36px;
+        left: 60px;
+        right: 60px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 80;
+        font-family: var(--sans);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: rgba(243, 229, 199, 0.85);
+        pointer-events: none;
+      }
+      .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(27, 18, 11, 0.75);
+        border: 1px solid rgba(243, 229, 199, 0.2);
+        padding: 6px 16px;
+        border-radius: 100px;
+        backdrop-filter: blur(10px);
+      }
+      .pulse-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--teal);
+        box-shadow: 0 0 10px var(--teal);
+      }
+
+      /* Shared clip class */
+      .clip {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* ========================================================
+         SCENE 1: THE KINETIC ARRIVAL (0 - 3.8s)
+         ======================================================== */
+      #scene-arrival {
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .hero-ring {
+        position: absolute;
+        width: 680px;
+        height: 680px;
+        border-radius: 50%;
+        border: 1px dashed rgba(255, 148, 71, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+        pointer-events: none;
+      }
+      .hero-ring-inner {
+        position: absolute;
+        width: 520px;
+        height: 520px;
+        border-radius: 50%;
+        border: 1px solid rgba(62, 213, 204, 0.2);
+      }
+
+      .arrival-center {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .arrival-badge-wrap {
+        overflow: hidden;
+        margin-bottom: 24px;
+      }
+      .arrival-badge {
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--orange-bright);
+        background: rgba(255, 148, 71, 0.15);
+        border: 1px solid rgba(255, 148, 71, 0.4);
+        padding: 10px 28px;
+        border-radius: 100px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 0 25px rgba(255, 148, 71, 0.15);
+      }
+      .arrival-title-wrap {
+        position: relative;
+      }
+      .arrival-wordmark {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 170px;
+        line-height: 0.95;
+        letter-spacing: 0.04em;
+        color: var(--paper-lt);
+        text-shadow: 0 0 40px rgba(255, 148, 71, 0.4), 0 15px 40px rgba(0,0,0,0.8);
+      }
+      .arrival-line {
+        width: 180px;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--orange), transparent);
+        margin: 28px 0;
+        border-radius: 2px;
+      }
+      .arrival-tagline {
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 32px;
+        color: var(--paper);
+        letter-spacing: 0.02em;
+      }
+
+      .ticker-bar {
+        position: absolute;
+        bottom: 40px;
+        left: 0;
+        width: 100%;
+        overflow: hidden;
+        white-space: nowrap;
+        border-top: 1px solid rgba(243, 229, 199, 0.15);
+        border-bottom: 1px solid rgba(243, 229, 199, 0.15);
+        padding: 12px 0;
+        background: rgba(27, 18, 11, 0.75);
+        backdrop-filter: blur(8px);
+        z-index: 5;
+      }
+      .ticker-track {
+        display: inline-block;
+        font-family: var(--sans);
+        font-weight: 800;
+        font-size: 13px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--paper-lt);
+      }
+      .ticker-track span {
+        margin: 0 28px;
+        color: var(--orange-bright);
+      }
+
+      /* ========================================================
+         SCENE 2: CINEMATIC ATMOSPHERE (3.8 - 7.6s)
+         ======================================================== */
+      #scene-room {
+        z-index: 12;
+        opacity: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .room-bg-wrap {
+        position: absolute;
+        inset: -10%;
+        width: 120%;
+        height: 120%;
+        overflow: hidden;
+      }
+      .room-bg-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: brightness(0.65) saturate(1.1);
+      }
+      .room-vignette-overlay {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at center, rgba(27, 18, 11, 0.2) 20%, rgba(27, 18, 11, 0.92) 85%);
+      }
+
+      .room-content {
+        position: relative;
+        z-index: 10;
+        width: 1680px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .room-left {
+        max-width: 880px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .motion-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 22px;
+        background: rgba(27, 18, 11, 0.85);
+        border: 1px solid var(--teal);
+        border-radius: 100px;
+        color: var(--teal);
+        font-family: var(--sans);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        box-shadow: 0 0 20px var(--teal-glow);
+        width: fit-content;
+      }
+      .room-headline-1 {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 96px;
+        line-height: 0.95;
+        color: var(--paper-lt);
+        letter-spacing: -0.01em;
+      }
+      .room-headline-2 {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 400;
+        font-size: 108px;
+        line-height: 0.95;
+        color: var(--orange-bright);
+        text-shadow: 0 10px 30px rgba(0,0,0,0.7);
+      }
+      .room-desc {
+        font-family: var(--sans);
+        font-size: 20px;
+        color: var(--paper);
+        line-height: 1.5;
+        max-width: 620px;
+      }
+
+      .room-right {
+        position: relative;
+        perspective: 1000px;
+      }
+      .ceiling-card {
+        width: 500px;
+        height: 600px;
+        background: var(--night-card);
+        border: 1px solid rgba(243, 229, 199, 0.25);
+        border-radius: 20px;
+        padding: 18px;
+        box-shadow: 0 40px 80px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 148, 71, 0.2);
+        display: flex;
+        flex-direction: column;
+        transform-style: preserve-3d;
+      }
+      .ceiling-card-img-wrap {
+        width: 100%;
+        height: 440px;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+      }
+      .ceiling-card-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .ceiling-card-badge {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        background: rgba(27, 18, 11, 0.85);
+        border: 1px solid var(--orange);
+        color: var(--orange-bright);
+        font-family: var(--sans);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        padding: 6px 14px;
+        border-radius: 100px;
+      }
+      .ceiling-card-info {
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .ceiling-card-title {
+        font-family: var(--serif);
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--paper-lt);
+      }
+      .ceiling-card-sub {
+        font-family: var(--sans);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        color: var(--teal);
+        text-transform: uppercase;
+      }
+
+      /* ========================================================
+         SCENE 3: 3D FLYING DISH CAROUSEL (7.6 - 12.55s)
+         ======================================================== */
+      #scene-plates {
+        z-index: 15;
+        opacity: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .marquee-band {
+        position: absolute;
+        width: 140%;
+        left: -20%;
+        overflow: hidden;
+        white-space: nowrap;
+        padding: 24px 0;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0.12;
+      }
+      .marquee-band-1 {
+        top: 220px;
+        transform: rotate(-5deg);
+        background: linear-gradient(90deg, transparent, rgba(255,148,71,0.5), transparent);
+        border-top: 2px solid var(--orange);
+        border-bottom: 2px solid var(--orange);
+      }
+      .marquee-band-2 {
+        bottom: 220px;
+        transform: rotate(5deg);
+        background: linear-gradient(90deg, transparent, rgba(62,213,204,0.5), transparent);
+        border-top: 2px solid var(--teal);
+        border-bottom: 2px solid var(--teal);
+      }
+      .marquee-text-large {
+        font-family: var(--sans);
+        font-weight: 800;
+        font-size: 42px;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--paper-lt);
+      }
+
+      .plates-header {
+        position: relative;
+        z-index: 10;
+        margin-bottom: 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+      .plates-badge {
+        font-family: var(--sans);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--orange-bright);
+        background: rgba(255, 148, 71, 0.15);
+        border: 1px solid var(--orange);
+        padding: 8px 24px;
+        border-radius: 100px;
+      }
+      .plates-title {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 64px;
+        color: var(--paper-lt);
+        letter-spacing: 0.02em;
+      }
+
+      .plates-stage {
+        position: relative;
+        z-index: 10;
+        width: 1680px;
+        height: 580px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 40px;
+        perspective: 1400px;
+      }
+
+      .dish-3d-card {
+        width: 460px;
+        background: var(--paper-lt);
+        border-radius: 18px;
+        padding: 16px 16px 24px;
+        box-shadow: 0 45px 90px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 148, 71, 0.2);
+        position: relative;
+        transform-style: preserve-3d;
+        will-change: transform;
+      }
+      .dish-3d-card-img-wrap {
+        width: 100%;
+        height: 360px;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+      }
+      .dish-3d-card-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .dish-tag-badge {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(27, 18, 11, 0.9);
+        border: 1px solid var(--orange);
+        color: #FFFFFF;
+        font-family: var(--sans);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.2em;
+        padding: 6px 14px;
+        border-radius: 100px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      }
+      .dish-3d-card-body {
+        margin-top: 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .dish-name {
+        font-family: var(--serif);
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--brown-dk);
+      }
+      .dish-cat {
+        font-family: var(--sans);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.25em;
+        color: var(--terra);
+        text-transform: uppercase;
+      }
+
+      #card-left {
+        z-index: 2;
+      }
+      #card-center {
+        z-index: 5;
+        border: 3px solid var(--orange);
+        box-shadow: 0 50px 100px rgba(0,0,0,0.8), 0 0 60px rgba(255, 148, 71, 0.4);
+      }
+      #card-right {
+        z-index: 2;
+      }
+
+      /* ========================================================
+         SCENE 4: RATING COUNTER EXPLOSION (12.55 - 16.38s)
+         ======================================================== */
+      #scene-rating {
+        z-index: 18;
+        opacity: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .rating-ring-1 {
+        position: absolute;
+        width: 500px;
+        height: 500px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 148, 71, 0.35);
+        pointer-events: none;
+      }
+      .rating-ring-2 {
+        position: absolute;
+        width: 720px;
+        height: 720px;
+        border-radius: 50%;
+        border: 1px dashed rgba(62, 213, 204, 0.3);
+        pointer-events: none;
+      }
+
+      .rating-box {
+        position: relative;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .rating-top-badge {
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--teal);
+        background: rgba(62, 213, 204, 0.15);
+        border: 1px solid var(--teal);
+        padding: 10px 32px;
+        border-radius: 100px;
+        box-shadow: 0 0 25px var(--teal-glow);
+        margin-bottom: 40px;
+      }
+      .rating-number-wrap {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .rating-counter-number {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 230px;
+        line-height: 0.85;
+        color: var(--orange-bright);
+        text-shadow: 0 10px 60px rgba(255, 148, 71, 0.5);
+      }
+      .rating-slash-text {
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 68px;
+        color: var(--paper-lt);
+      }
+      .rating-stars-wrap {
+        display: flex;
+        gap: 16px;
+        margin: 20px 0 20px;
+      }
+      .star-item {
+        width: 44px;
+        height: 44px;
+        filter: drop-shadow(0 0 15px rgba(255, 148, 71, 0.7));
+      }
+      .rating-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 16px;
+        background: rgba(37, 27, 19, 0.95);
+        border: 1px solid rgba(243, 229, 199, 0.25);
+        padding: 14px 38px;
+        border-radius: 100px;
+        font-family: var(--sans);
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--paper-lt);
+        letter-spacing: 0.05em;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+      }
+      .rating-stat-pill span {
+        color: var(--orange-bright);
+      }
+
+      .testimonial-quote {
+        margin-top: 32px;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 26px;
+        color: var(--paper);
+        max-width: 780px;
+        line-height: 1.4;
+      }
+
+      /* ========================================================
+         SCENE 5: FINALE SLAM & LOGO LOCKUP (16.38 - 20s)
+         ======================================================== */
+      #scene-finale {
+        z-index: 20;
+        opacity: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .finale-words-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 30px;
+      }
+      .finale-line-1 {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 88px;
+        line-height: 1;
+        color: var(--paper-lt);
+        text-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      }
+      .finale-line-2 {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 400;
+        font-size: 96px;
+        line-height: 1;
+        color: var(--teal);
+        text-shadow: 0 0 35px var(--teal-glow);
+      }
+      .finale-line-3 {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 108px;
+        line-height: 1;
+        color: var(--orange-bright);
+        text-shadow: 0 0 45px var(--orange-glow);
+      }
+
+      .finale-brand-box {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      .finale-logo {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 76px;
+        letter-spacing: 0.08em;
+        color: var(--paper-lt);
+      }
+      .finale-cta-btn {
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--night);
+        background: linear-gradient(135deg, var(--orange-bright), #FF7B29);
+        padding: 16px 44px;
+        border-radius: 100px;
+        box-shadow: 0 10px 35px rgba(255, 148, 71, 0.45);
+      }
+      .finale-location {
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: rgba(243, 229, 199, 0.85);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- Background Ambient Orbs -->
+      <div class="ambient-glow-1" id="amb-1"></div>
+      <div class="ambient-glow-2" id="amb-2"></div>
+      <div class="grid-lines"></div>
+      <div class="grain" aria-hidden="true"></div>
+
+      <!-- Persistent HUD Crosshairs -->
+      <div class="hud-crosshair hud-tl"></div>
+      <div class="hud-crosshair hud-tr"></div>
+      <div class="hud-crosshair hud-bl"></div>
+      <div class="hud-crosshair hud-br"></div>
+
+      <!-- Top Global Status Bar -->
+      <div class="global-header">
+        <div class="status-pill">
+          <div class="pulse-dot"></div>
+          <span>D'PARKZ · THAKKAMALPURAM</span>
+        </div>
+        <div class="status-pill">
+          <span>AUTHENTIC DINING EXPERIENCE</span>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           SCENE 1: THE KINETIC ARRIVAL (0 - 3.8s)
+           ========================================== -->
+      <div class="clip" id="scene-arrival" data-start="0" data-duration="3.8" data-track-index="0">
+        <div class="hero-ring" id="hero-ring">
+          <div class="hero-ring-inner"></div>
+        </div>
+
+        <div class="arrival-center">
+          <div class="arrival-badge-wrap">
+            <div class="arrival-badge" id="arrival-badge">
+              <span>✦</span> RESTAURANT & AMBIENCE <span>✦</span>
+            </div>
+          </div>
+          <div class="arrival-title-wrap">
+            <div class="arrival-wordmark" id="arrival-wordmark">D'PARKZ</div>
+          </div>
+          <div class="arrival-line" id="arrival-line"></div>
+          <div class="arrival-tagline" id="arrival-tagline">Good Food · Good Company · Good Memories</div>
+        </div>
+
+        <div class="ticker-bar" id="arrival-ticker">
+          <div class="ticker-track">
+            INDO-CHINESE STARTERS <span>✦</span> CLAY-OVEN TANDOOR <span>✦</span> DUM BIRYANI <span>✦</span> SIGNATURE SIZZLERS <span>✦</span> FLORAL AMBIENCE <span>✦</span> THAKKAMALPURAM
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           SCENE 2: CINEMATIC ATMOSPHERE (3.8 - 7.6s)
+           ========================================== -->
+      <div class="clip" id="scene-room" data-start="3.8" data-duration="3.8" data-track-index="1">
+        <div class="room-bg-wrap" data-layout-allow-overflow="true">
+          <img class="room-bg-img" id="room-bg-img" src="assets/img/photo-room.webp" alt="D'PARKZ Interior" data-layout-allow-overflow="true" />
+          <div class="room-vignette-overlay"></div>
+        </div>
+
+        <div class="room-content">
+          <div class="room-left">
+            <div class="motion-badge" id="room-badge">
+              <span>★</span> THE EXPERIENCE
+            </div>
+            <div class="room-headline-1" id="room-head-1">WHERE FLAVOUR</div>
+            <div class="room-headline-2" id="room-head-2">Meets Ambience.</div>
+            <div class="room-desc" id="room-desc">
+              Step into an immersive sanctuary featuring candlelit dining and a breathtaking canopy of flowers.
+            </div>
+          </div>
+
+          <div class="room-right" id="room-card-wrap">
+            <div class="ceiling-card" id="ceiling-card">
+              <div class="ceiling-card-img-wrap">
+                <img src="assets/img/photo-ceiling.webp" alt="Flower Ceiling" />
+                <div class="ceiling-card-badge">SIGNATURE INTERIOR</div>
+              </div>
+              <div class="ceiling-card-info">
+                <div class="ceiling-card-title">Ceiling of Flowers</div>
+                <div class="ceiling-card-sub">Iconic Ambience</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           SCENE 3: 3D FLYING DISH CAROUSEL (7.6 - 12.55s)
+           ========================================== -->
+      <div class="clip" id="scene-plates" data-start="7.6" data-duration="4.95" data-track-index="2">
+        <!-- Angled Background Marquee Ribbons -->
+        <div class="marquee-band marquee-band-1" id="m-band-1" aria-hidden="true" data-layout-allow-occlusion="true" data-layout-allow-overflow="true">
+          <div class="marquee-text-large" aria-hidden="true" data-layout-allow-occlusion="true" data-layout-allow-overflow="true">
+            DYNAMITE CHICKEN ✦ MUTTON BIRYANI ✦ TANDOORI CHICKEN ✦ DYNAMITE PRAWNS ✦ FRESH NAAN ✦
+          </div>
+        </div>
+        <div class="marquee-band marquee-band-2" id="m-band-2" aria-hidden="true" data-layout-allow-occlusion="true" data-layout-allow-overflow="true">
+          <div class="marquee-text-large" aria-hidden="true" data-layout-allow-occlusion="true" data-layout-allow-overflow="true">
+            AUTHENTIC SPICES ✦ SIZZLING PLATES ✦ CHEF'S SECRET RECIPES ✦ HANDCRAFTED FLAVOURS ✦
+          </div>
+        </div>
+
+        <div class="plates-header">
+          <div class="plates-badge" id="plates-badge">CHEF'S SIGNATURE CREATIONS</div>
+          <div class="plates-title" id="plates-title">Masterpieces on Every Plate</div>
+        </div>
+
+        <div class="plates-stage">
+          <!-- Card 1: Left -->
+          <div class="dish-3d-card" id="card-left">
+            <div class="dish-3d-card-img-wrap">
+              <img src="assets/img/dish-dynamite-chicken.webp" alt="Dynamite Chicken" />
+              <div class="dish-tag-badge">MOST POPULAR</div>
+            </div>
+            <div class="dish-3d-card-body">
+              <div class="dish-name">Dynamite Chicken</div>
+              <div class="dish-cat">STARTER</div>
+            </div>
+          </div>
+
+          <!-- Card 2: Center Hero -->
+          <div class="dish-3d-card" id="card-center">
+            <div class="dish-3d-card-img-wrap">
+              <img src="assets/img/dish-mutton-biryani.webp" alt="Mutton Biryani" />
+              <div class="dish-tag-badge">CHEF'S SPECIAL</div>
+            </div>
+            <div class="dish-3d-card-body">
+              <div class="dish-name">Mutton Biryani</div>
+              <div class="dish-cat">AUTHENTIC DUM</div>
+            </div>
+          </div>
+
+          <!-- Card 3: Right -->
+          <div class="dish-3d-card" id="card-right">
+            <div class="dish-3d-card-img-wrap">
+              <img src="assets/img/dish-tandoori-chicken.webp" alt="Tandoori Chicken" />
+              <div class="dish-tag-badge">SIZZLING HOT</div>
+            </div>
+            <div class="dish-3d-card-body">
+              <div class="dish-name">Tandoori Chicken</div>
+              <div class="dish-cat">CLAY OVEN</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           SCENE 4: RATING COUNTER EXPLOSION (12.55 - 16.38s)
+           ========================================== -->
+      <div class="clip" id="scene-rating" data-start="12.55" data-duration="3.83" data-track-index="3">
+        <div class="rating-ring-1" id="r-ring-1"></div>
+        <div class="rating-ring-2" id="r-ring-2"></div>
+
+        <div class="rating-box">
+          <div class="rating-top-badge" id="rating-top-badge" data-layout-allow-overlap="true">
+            ★ GOOGLE VERIFIED REVIEWS ★
+          </div>
+
+          <div class="rating-number-wrap">
+            <div class="rating-counter-number" id="rating-counter">4.6</div>
+            <div class="rating-slash-text">/ 5.0</div>
+          </div>
+
+          <div class="rating-stars-wrap" id="rating-stars-wrap">
+            <div class="star-item"><svg viewBox="0 0 24 24" fill="#FFA46A"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.5l7.1-.6z"/></svg></div>
+            <div class="star-item"><svg viewBox="0 0 24 24" fill="#FFA46A"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.5l7.1-.6z"/></svg></div>
+            <div class="star-item"><svg viewBox="0 0 24 24" fill="#FFA46A"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.5l7.1-.6z"/></svg></div>
+            <div class="star-item"><svg viewBox="0 0 24 24" fill="#FFA46A"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.5l7.1-.6z"/></svg></div>
+            <div class="star-item"><svg viewBox="0 0 24 24" fill="#FFA46A"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.5l7.1-.6z"/></svg></div>
+          </div>
+
+          <div class="rating-stat-pill" id="rating-stat-pill">
+            <span>5,078</span> Guests Evaluated with Excellence
+          </div>
+
+          <div class="testimonial-quote" id="test-quote">
+            “The finest biryani, tender tandoor, and enchanting ambience in Tamil Nadu.”
+          </div>
+        </div>
+      </div>
+
+      <!-- ==========================================
+           SCENE 5: FINALE SLAM & CALL TO ACTION (16.38 - 20s)
+           ========================================== -->
+      <div class="clip" id="scene-finale" data-start="16.38" data-duration="3.62" data-track-index="4">
+        <div class="finale-words-wrap">
+          <div class="finale-line-1" id="f-line-1">GOOD FOOD.</div>
+          <div class="finale-line-2" id="f-line-2">Good Company.</div>
+          <div class="finale-line-3" id="f-line-3">GOOD MEMORIES.</div>
+        </div>
+
+        <div class="finale-brand-box" id="f-brand-box">
+          <div class="finale-logo" id="f-logo">D'PARKZ</div>
+          <div class="finale-cta-btn" id="f-cta">RESERVE YOUR TABLE TODAY</div>
+          <div class="finale-location">THAKKAMALPURAM · TAMIL NADU</div>
+        </div>
+      </div>
+
+      <!-- Audio: Master Music Bed -->
+      <audio id="bg-music" data-start="0" data-duration="20" data-track-index="10" data-volume="0.35" data-fade-in="1.0" data-fade-out="2.2" src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"></audio>
+
+      <!-- Audio: SFX Cues -->
+      <!-- Transition Whoosh 1 (Scene 1 -> 2) -->
+      <audio id="sfx-whoosh-1" data-start="3.30" data-duration="0.23" data-track-index="11" data-volume="0.6" src="assets/sfx/interface/rollover1.ogg"></audio>
+
+      <!-- Transition Whoosh 2 (Scene 2 -> 3) -->
+      <audio id="sfx-whoosh-2" data-start="7.15" data-duration="0.06" data-track-index="12" data-volume="0.6" src="assets/sfx/interface/rollover2.ogg"></audio>
+
+      <!-- Food Card 1 Landing -->
+      <audio id="sfx-card-1" data-start="8.19" data-duration="0.27" data-track-index="13" data-volume="0.6" src="assets/sfx/impact/impactWood_light_000.ogg"></audio>
+
+      <!-- Food Card 2 Center Slam (beat 8.74s) -->
+      <audio id="sfx-card-2" data-start="8.74" data-duration="0.11" data-track-index="14" data-volume="0.75" src="assets/sfx/interface/drop_001.ogg"></audio>
+
+      <!-- Food Card 3 Right Landing -->
+      <audio id="sfx-card-3" data-start="9.29" data-duration="0.27" data-track-index="15" data-volume="0.6" src="assets/sfx/impact/impactWood_light_001.ogg"></audio>
+
+      <!-- Transition Whoosh 3 (Scene 3 -> 4) -->
+      <audio id="sfx-whoosh-3" data-start="12.10" data-duration="0.12" data-track-index="16" data-volume="0.65" src="assets/sfx/interface/rollover4.ogg"></audio>
+
+      <!-- Rating Star Bell Strike (beat 13.11s) -->
+      <audio id="sfx-bell" data-start="13.11" data-duration="1.48" data-track-index="17" data-volume="0.55" src="assets/sfx/impact/impactBell_heavy_000.ogg"></audio>
+
+      <!-- Finale Impact (beat 17.47s) -->
+      <audio id="sfx-finale" data-start="17.47" data-duration="0.27" data-track-index="18" data-volume="0.7" src="assets/sfx/impact/impactWood_light_000.ogg"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      // Ambient glowing elements drift
+      tl.to("#amb-1", { x: 80, y: 60, scale: 1.15, duration: 20, ease: "sine.inOut" }, 0);
+      tl.to("#amb-2", { x: -70, y: -50, scale: 1.2, duration: 20, ease: "sine.inOut" }, 0);
+
+      // ========================================================
+      // SCENE 1: KINETIC ARRIVAL (0 - 3.8s)
+      // ========================================================
+      tl.fromTo("#hero-ring", 
+        { scale: 0.6, opacity: 0, rotation: -60 },
+        { scale: 1, opacity: 1, rotation: 60, duration: 3.5, ease: "power2.out" },
+        0
+      );
+
+      // Explosive slam of wordmark
+      tl.fromTo("#arrival-wordmark",
+        { scale: 2.4, y: 80, opacity: 0, filter: "blur(20px)" },
+        { scale: 1, y: 0, opacity: 1, filter: "blur(0px)", duration: 1.1, ease: "back.out(2)" },
+        0.25
+      );
+
+      // Badge drop
+      tl.fromTo("#arrival-badge",
+        { y: -50, opacity: 0, scale: 0.7 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.7, ease: "elastic.out(1, 0.5)" },
+        0.7
+      );
+
+      // Divider line expansion
+      tl.fromTo("#arrival-line",
+        { width: 0, opacity: 0 },
+        { width: 180, opacity: 1, duration: 0.6, ease: "power3.out" },
+        0.9
+      );
+
+      // Tagline reveal
+      tl.fromTo("#arrival-tagline",
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.7, ease: "power2.out" },
+        1.1
+      );
+
+      // Ticker bar slide
+      tl.fromTo("#arrival-ticker",
+        { y: 80, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" },
+        0.8
+      );
+
+      // Camera plunge / zoom-punch exit into Scene 2
+      tl.to("#scene-arrival",
+        { scale: 1.8, opacity: 0, filter: "blur(12px)", duration: 0.5, ease: "power3.in" },
+        3.3
+      );
+
+      // ========================================================
+      // SCENE 2: CINEMATIC ATMOSPHERE (3.8 - 7.6s)
+      // ========================================================
+      tl.fromTo("#scene-room",
+        { opacity: 0, scale: 0.88, filter: "blur(10px)" },
+        { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "power3.out" },
+        3.5
+      );
+
+      // Ken Burns room background scale
+      tl.fromTo("#room-bg-img",
+        { scale: 1.18, x: -30 },
+        { scale: 1.02, x: 20, duration: 4.0, ease: "none" },
+        3.6
+      );
+
+      // Typography whip-in
+      tl.fromTo("#room-badge",
+        { x: -60, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.6, ease: "back.out(1.8)" },
+        3.8
+      );
+      tl.fromTo("#room-head-1",
+        { x: -100, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.8, ease: "power3.out" },
+        3.95
+      );
+      tl.fromTo("#room-head-2",
+        { x: -80, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.8, ease: "power3.out" },
+        4.15
+      );
+      tl.fromTo("#room-desc",
+        { y: 40, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.7, ease: "power2.out" },
+        4.4
+      );
+
+      // 3D Ceiling Card sweep-in
+      tl.fromTo("#ceiling-card",
+        { rotateY: 35, rotateX: -15, scale: 0.7, x: 250, opacity: 0 },
+        { rotateY: -12, rotateX: 6, scale: 1, x: 0, opacity: 1, duration: 1.2, ease: "power3.out" },
+        4.0
+      );
+      tl.to("#ceiling-card", {
+        rotateY: -8,
+        rotateX: 10,
+        y: -15,
+        duration: 1.9,
+        ease: "sine.inOut"
+      }, 5.25);
+
+      // Scene 2 exit whip
+      tl.to("#scene-room",
+        { x: "-100%", opacity: 0, scale: 0.9, duration: 0.45, ease: "power3.in" },
+        7.15
+      );
+
+      // ========================================================
+      // SCENE 3: 3D FLYING DISH CAROUSEL (7.6 - 12.55s)
+      // ========================================================
+      tl.fromTo("#scene-plates",
+        { opacity: 0, x: "60%" },
+        { opacity: 1, x: "0%", duration: 0.45, ease: "power3.out" },
+        7.25
+      );
+
+      tl.fromTo("#m-band-1", { x: 0 }, { x: -600, duration: 5, ease: "none" }, 7.3);
+      tl.fromTo("#m-band-2", { x: -600 }, { x: 0, duration: 5, ease: "none" }, 7.3);
+
+      tl.fromTo("#plates-badge",
+        { y: -30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "back.out(2)" },
+        7.5
+      );
+      tl.fromTo("#plates-title",
+        { scale: 0.8, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.6, ease: "power3.out" },
+        7.65
+      );
+
+      // Food Card 1 (Left) flies in from bottom-left
+      tl.fromTo("#card-left",
+        { y: 350, x: -200, rotateZ: -25, rotateY: 30, scale: 0.6, opacity: 0 },
+        { y: 20, x: 0, rotateZ: -4, rotateY: 16, scale: 1, opacity: 1, duration: 0.7, ease: "back.out(1.8)" },
+        8.19
+      );
+
+      // Food Card 2 (Center Hero) slams from top with shock impact
+      tl.fromTo("#card-center",
+        { y: -350, scale: 1.6, opacity: 0 },
+        { y: -15, scale: 1.08, opacity: 1, duration: 0.7, ease: "elastic.out(1, 0.45)" },
+        8.74
+      );
+
+      // Food Card 3 (Right) flies in from bottom-right
+      tl.fromTo("#card-right",
+        { y: 350, x: 200, rotateZ: 25, rotateY: -30, scale: 0.6, opacity: 0 },
+        { y: 20, x: 0, rotateZ: 4, rotateY: -16, scale: 1, opacity: 1, duration: 0.7, ease: "back.out(1.8)" },
+        9.29
+      );
+
+      // Settle float with explicit endpoints (10.0s to 12.0s)
+      tl.to("#card-left", { y: 8, rotateZ: -6, duration: 2.0, ease: "sine.inOut" }, 10.0);
+      tl.to("#card-center", { y: -28, scale: 1.12, duration: 2.0, ease: "sine.inOut" }, 10.0);
+      tl.to("#card-right", { y: 8, rotateZ: 6, duration: 2.0, ease: "sine.inOut" }, 10.0);
+
+      // Scene 3 radial blast exit
+      tl.to("#card-left", { x: -600, rotateZ: -30, opacity: 0, duration: 0.4, ease: "power3.in" }, 12.1);
+      tl.to("#card-center", { scale: 2.2, opacity: 0, filter: "blur(15px)", duration: 0.4, ease: "power3.in" }, 12.1);
+      tl.to("#card-right", { x: 600, rotateZ: 30, opacity: 0, duration: 0.4, ease: "power3.in" }, 12.1);
+      tl.to("#scene-plates", { opacity: 0, duration: 0.35 }, 12.2);
+
+      // ========================================================
+      // SCENE 4: RATING COUNTER EXPLOSION (12.55 - 16.38s)
+      // ========================================================
+      tl.fromTo("#scene-rating",
+        { opacity: 0, scale: 0.7 },
+        { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" },
+        12.5
+      );
+
+      // Shockwave rings expanding
+      tl.fromTo("#r-ring-1",
+        { scale: 0.2, opacity: 0 },
+        { scale: 1.3, opacity: 0.8, duration: 1.8, ease: "power2.out" },
+        12.7
+      );
+      tl.fromTo("#r-ring-2",
+        { scale: 0.4, opacity: 0, rotation: 0 },
+        { scale: 1.25, opacity: 0.6, rotation: 90, duration: 2.2, ease: "power2.out" },
+        12.85
+      );
+
+      tl.fromTo("#rating-top-badge",
+        { y: -30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, ease: "back.out(2)" },
+        12.75
+      );
+
+      // Rolling Counter: 0.0 -> 4.6
+      const ratingCounterObj = { val: 0.0 };
+      tl.to(ratingCounterObj, {
+        val: 4.6,
+        duration: 1.1,
+        ease: "power3.out",
+        onUpdate: () => {
+          document.getElementById("rating-counter").innerText = ratingCounterObj.val.toFixed(1);
+        }
+      }, 12.9);
+
+      // Stars slam with bounce
+      tl.fromTo(".star-item",
+        { scale: 0, rotate: -45 },
+        { scale: 1, rotate: 0, duration: 0.6, stagger: 0.08, ease: "elastic.out(1, 0.4)" },
+        13.11
+      );
+
+      // Reviews stat pill
+      tl.fromTo("#rating-stat-pill",
+        { y: 35, opacity: 0, scale: 0.85 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "back.out(2)" },
+        13.6
+      );
+
+      // Testimonial
+      tl.fromTo("#test-quote",
+        { y: 25, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.7, ease: "power2.out" },
+        14.0
+      );
+
+      // Scene 4 exit zoom
+      tl.to("#scene-rating",
+        { scale: 1.4, opacity: 0, filter: "blur(10px)", duration: 0.45, ease: "power3.in" },
+        15.9
+      );
+
+      // ========================================================
+      // SCENE 5: FINALE SLAM & LOGO LOCKUP (16.38 - 20s)
+      // ========================================================
+      tl.fromTo("#scene-finale",
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3 },
+        16.35
+      );
+
+      // Kinetic typography slams
+      tl.fromTo("#f-line-1",
+        { x: -400, opacity: 0, scale: 1.3 },
+        { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.8)" },
+        16.5
+      );
+      tl.fromTo("#f-line-2",
+        { x: 400, opacity: 0, scale: 1.3 },
+        { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.8)" },
+        17.0
+      );
+      tl.fromTo("#f-line-3",
+        { y: -150, opacity: 0, scale: 1.6 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: "elastic.out(1, 0.4)" },
+        17.47
+      );
+
+      // Grand finale brand lockup
+      tl.fromTo("#f-brand-box",
+        { scale: 0.7, opacity: 0, y: 40 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.8, ease: "power3.out" },
+        18.0
+      );
+      tl.fromTo("#f-cta",
+        { scale: 0.8, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2.5)" },
+        18.3
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
