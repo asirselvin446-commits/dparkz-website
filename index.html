@@ -39,7 +39,9 @@
     var small = window.matchMedia && matchMedia('(max-width: 900px)').matches;
     var lite = document.documentElement.classList.contains('lite');
     var need = window.innerWidth * Math.min(window.devicePixelRatio || 1, 1.5);
-    var size = small ? 'sm' : (need > 1700 && !lite ? 'hd' : 'md');
+    // phones held upright get portrait frames cut from the 1920px originals (608x1080), so the narrow
+    // screen shows real detail instead of a stretched strip of a small landscape frame
+    var size = small ? (window.innerHeight > window.innerWidth ? 'p' : 'md') : (need > 1700 && !lite ? 'hd' : 'md');
     var dir = 'assets/walk/v4/' + size + '/';
     window.DP_WALK = dir;
     // computers also get the walk-in as an all-keyframe video: every frame decodes on the graphics chip in ~1 ms,
@@ -256,6 +258,9 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 .walk__pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: var(--night); }
 .walk__canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .walk__shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(27,18,11,.6) 0%, rgba(27,18,11,0) 26%, rgba(27,18,11,0) 56%, rgba(27,18,11,.88) 100%); }
+.walk__scrim { display: none; position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.walk__scrim--low { opacity: 1; background: linear-gradient(180deg, rgba(27,18,11,0) 28%, rgba(27,18,11,.6) 48%, rgba(27,18,11,.86) 66%, rgba(27,18,11,.92) 100%); }
+.walk__scrim--mid { background: radial-gradient(ellipse 95% 38% at 50% 50%, rgba(27,18,11,.72) 0%, rgba(27,18,11,.5) 55%, rgba(27,18,11,0) 100%); }
 .beat { position: absolute; left: var(--gutter); right: var(--gutter); pointer-events: none; will-change: opacity, transform; }
 .beat.is-on { pointer-events: auto; }
 .beat--1 { bottom: 15vh; display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; flex-wrap: wrap; }
@@ -280,7 +285,9 @@ h1 em, h2 em, h3 em { font-weight: 400; }
 }
 @media (max-width: 760px) {
   .walk__hud .scrub { display: none; }
-  .walk__shade { background: linear-gradient(180deg, rgba(27,18,11,.55) 0%, rgba(27,18,11,0) 22%, rgba(27,18,11,.15) 40%, rgba(27,18,11,.92) 78%); }
+  /* phones: a light shade keeps the picture bright; the darker scrim only shows while words are on screen */
+  .walk__shade { background: linear-gradient(180deg, rgba(27,18,11,.5) 0%, rgba(27,18,11,0) 16%, rgba(27,18,11,0) 62%, rgba(27,18,11,.6) 100%); }
+  .walk__scrim { display: block; }
 }
 
 /* Story */
@@ -472,6 +479,8 @@ img { height: auto; }
     <div class="walk__pin">
       <canvas class="walk__canvas" id="walk-canvas" role="img" aria-label="Walking from the garden entrance into the D'PARKZ dining room"></canvas>
       <div class="walk__shade"></div>
+      <div class="walk__scrim walk__scrim--low" id="walk-scrim"></div>
+      <div class="walk__scrim walk__scrim--mid" id="walk-scrim-mid"></div>
       <div class="walk__dim" id="walk-dim"></div>
       <div class="beat beat--1 is-on" id="beat-1">
         <h1 class="split" data-split="manual">D'PARKZ</h1>
@@ -907,17 +916,19 @@ img { height: auto; }
   })();
 
   /* ---------------- Walk-in frames ----------------
-     Frame size is chosen in <head> (DP_WALK): 1920px for large or sharp screens, 1280px for laptops, 720px for phones.
+     Frame size is chosen in <head> (DP_WALK): 1920px for large or sharp screens, 1280px for laptops,
+     608x1080 portrait frames for upright phones.
      Frames are downloaded as compressed files and decoded off the main thread (createImageBitmap on the file),
      only for the few frames around the current position, cropped to the screen shape. Scrolling never waits
      on a decode: if a frame isn't ready yet, the last ready one stays on screen.
      Two tiers on computers: a light 480px copy of every second frame is always decoded, so a fast flick never
      runs out of frames; full-quality frames are decoded around where you are and replace it instantly.
-     Phones keep every (720px) frame decoded, which is small enough to hold them all.
+     Phones do the same, with the light copy decoded small from the phone frames themselves (nothing extra to download).
      Scroll sets a target and the frame catches up within a few screen refreshes, stepping through every frame
      on the way (one crisp frame at a time, no blending). */
   var COUNT = 240, ONLY_EVEN = SMALL || LITE, DIR = window.DP_WALK || 'assets/walk/v4/md/';
-  var FW = /\/hd\/$/.test(DIR) ? 1920 : /\/sm\/$/.test(DIR) ? 720 : 1280, FH = Math.round(FW * 9 / 16);
+  var SIZES = { hd: [1920, 1080], md: [1280, 720], sm: [720, 405], p: [608, 1080] };
+  var FS = SIZES[(/\/(\w+)\/$/.exec(DIR) || [])[1]] || SIZES.md, FW = FS[0], FH = FS[1];
   var canvas = $('walk-canvas'), ctx = canvas.getContext('2d', { alpha: false });
   var files = [], loaded = [], bmps = {}, pending = {}, inFlight = 0, cropKey = '';
   var target = 0, shown = 0, lastKey = '';
@@ -930,12 +941,14 @@ img { height: auto; }
   }
   function crop() { return cropOf(FW, FH); }
 
-  // light tier: every frame, 480px, always decoded (computers only)
-  var TWO_TIER = !SMALL && BG, LOW_DIR = 'assets/walk/v4/sm/', LOW_COUNT = COUNT / 2, LW = 720, LH = 405;
-  var lowFiles = [], lowBmps = {}, lowPend = {}, lowActive = 0, lowQueue = [];
+  // light tier: every second frame, 480px, always decoded (computers: downloaded separately;
+  // phones: decoded small from the frames they download anyway)
+  var TWO_TIER = !SMALL && BG, PHONE_LOW = SMALL && BG, LOW_DIR = 'assets/walk/v4/sm/', LOW_COUNT = COUNT / 2;
+  var LW = PHONE_LOW ? FW : 720, LH = PHONE_LOW ? FH : 405, LOW_MAX = PHONE_LOW ? 200 : 480;
+  var lowFiles = PHONE_LOW ? files : [], lowBmps = {}, lowPend = {}, lowActive = 0, lowQueue = [];
   function makeLow(k) {
     if (!lowFiles[k] || lowPend[k] || vidReady) return;
-    var cr = cropOf(LW, LH), key = cropKey, rw = Math.min(480, Math.round(cr[2] * 1.5)), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
+    var cr = cropOf(LW, LH), key = cropKey, rw = Math.min(LOW_MAX, Math.round(cr[2] * 1.5)), rh = Math.max(1, Math.round(rw * cr[3] / cr[2]));
     lowPend[k] = true;
     createImageBitmap(lowFiles[k], Math.round(cr[0]), Math.round(cr[1]), Math.round(cr[2]), Math.round(cr[3]), { resizeWidth: rw, resizeHeight: rh, resizeQuality: 'medium' })
       .then(function (bm) {
@@ -979,7 +992,7 @@ img { height: auto; }
   }
   function dropBitmap(k) { if (bmps[k]) { if (bmps[k].close) bmps[k].close(); delete bmps[k]; } }
   // frames kept decoded: the opening frames always, plus a window that leads in the scroll direction
-  var dirn = 1, KEEP = SMALL ? COUNT : 6;
+  var dirn = 1, KEEP = 6;
   function lead() { return WIN_AHEAD; }
   function inWindow(k) {
     if (k < KEEP) return true;
@@ -1017,20 +1030,20 @@ img { height: auto; }
     // ignore small height changes (phone address bar)
     if (!force && w === lastW && Math.abs(h - lastH) < 120) return;
     lastW = w; lastH = h;
-    var dpr = Math.min(window.devicePixelRatio || 1, (LITE || SMALL) ? 1 : 1.5), maxW = SMALL ? 720 : 2400;
-    var scale = Math.min(dpr, maxW / w);
+    var dpr = Math.min(window.devicePixelRatio || 1, LITE ? 1 : 1.5), scale = Math.min(dpr, 2400 / w);
+    // phones: as sharp as the frames allow (every source pixel used, never more than that)
+    if (SMALL) { var c = w / h, srcW = FW / FH > c ? FH * c : FW; scale = Math.min(window.devicePixelRatio || 1, 2, srcW / w); }
     canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     cropKey = canvas.width + 'x' + canvas.height;
     // keep as many full-quality frames ready as a fixed memory budget allows (about 32 at 1920px, 70 at 1280px),
     // two thirds ahead in the scroll direction, so fast scrolling passes over frames that are already decoded
-    if (!SMALL) {
-      var cb = crop(), bw = Math.min(cb[2], canvas.width), per = bw * (bw * cb[3] / cb[2]) * 4;
-      var n = clamp(Math.floor((LITE ? 96e6 : 256e6) / per), 12, 80);
-      WIN_AHEAD = Math.ceil(n * .65); WIN_BACK = Math.floor(n * .35);
-    }
+    // (phones: about 45 frames, 22 on low-memory phones; with every second frame, the window spans twice as many)
+    var cb = crop(), bw = Math.min(cb[2], canvas.width), per = bw * (bw * cb[3] / cb[2]) * 4;
+    var n = clamp(Math.floor((SMALL ? (LITE ? 48e6 : 96e6) : LITE ? 96e6 : 256e6) / per), 12, 80), span = SMALL ? 2 : 1;
+    WIN_AHEAD = Math.ceil(n * .65) * span; WIN_BACK = Math.floor(n * .35) * span;
     Object.keys(bmps).forEach(function (k) { dropBitmap(+k); });
-    if (TWO_TIER) lowFiles.forEach(function (f, k) { if (f) makeLow(k); });
+    if (TWO_TIER || PHONE_LOW) lowFiles.forEach(function (f, k) { if (f) makeLow(k); });
     lastKey = ''; warm();
   }
   // what to draw for frame k: full quality whenever a full-quality frame is within 3 frames;
@@ -1069,7 +1082,7 @@ img { height: auto; }
   function load(k) {
     return fetch(DIR + 'f' + String(k).padStart(3, '0') + '.webp')
       .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
-      .then(function (blob) { files[k] = blob; loaded[k] = true; if (inWindow(k)) makeBitmap(k); }, function () {});
+      .then(function (blob) { files[k] = blob; loaded[k] = true; if (inWindow(k)) makeBitmap(k); if (PHONE_LOW) { decodeQueue.push(k); pumpDecode(); } }, function () {});
   }
   // ease the shown position toward the scroll position (only while the walk-in is on screen)
   var walkEl = $('walk'), walkOn = true, lastWarm = -1, STEP_MAX = 4;
@@ -1210,7 +1223,7 @@ img { height: auto; }
 
     // Walk-in: the page stays here until the last frame
     var walk = $('walk'), b1 = $('beat-1'), b2 = $('beat-2'), b3 = $('beat-3'), dim = $('walk-dim');
-    var bar = $('walk-bar'), frameNo = $('walk-frame'), dive = $('dive');
+    var bar = $('walk-bar'), frameNo = $('walk-frame'), dive = $('dive'), scrim = $('walk-scrim'), scrimMid = $('walk-scrim-mid');
     bar.style.width = '100%'; bar.style.transformOrigin = '0 50%';
     function beat(el, p, a, b, centre) {
       var o = clamp((p - a) / .06, 0, 1) * clamp((b - p) / .06, 0, 1), sh = (1 - o) * 34 * (p < a + .06 ? 1 : -1);
@@ -1225,6 +1238,7 @@ img { height: auto; }
       frameNo.textContent = String(Math.round(target) + 1).padStart(3, '0');
       b1.style.opacity = clamp(1 - (p - .1) / .06, 0, 1); b1.classList.toggle('is-on', p < .13);
       beat(b2, p, .28, .56, true); beat(b3, p, .68, .98, false);
+      scrim.style.opacity = Math.max(+b1.style.opacity, +b3.style.opacity); scrimMid.style.opacity = b2.style.opacity;
       dive.style.opacity = p > .9 ? 0 : 1;
       dim.style.opacity = clamp((p - .9) / .1, 0, 1) * .45;
     }

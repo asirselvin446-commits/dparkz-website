@@ -6,7 +6,8 @@ Everything else is media, fonts and the animation libraries, all served from thi
 ```
 index.html
 assets/img/     photos as WebP, each with a -sm phone size (storefront.jpg is the link preview)
-assets/walk/v4/  the 240 walk-in frames, straight from the original video: hd/ 1920px, md/ 1280px, sm/ 720px (phones load every second one).
+assets/walk/v4/  the 240 walk-in frames, straight from the original video: hd/ 1920px, md/ 1280px, sm/ 720px (computers' fast-scroll copies),
+                 p/ 608x1080 portrait frames cut from the centre of hd/ for upright phones (phones load every second one).
                  walk-hd.mp4 / walk-md.mp4: the same frames as an all-keyframe H.264 video. Computers download it
                  after the opening frames and then draw every frame from it (sharp at any scroll speed).
                  Rebuild with: ffmpeg -framerate 24 -i hd/f%03d.webp -c:v libx264 -crf 20 -g 1 -pix_fmt yuv420p -movflags +faststart walk-hd.mp4
